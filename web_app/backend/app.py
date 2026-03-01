@@ -1,6 +1,6 @@
 from flask import Flask, jsonify, request
 from flask_cors import CORS
-from models import db, Stat, KnowledgeNode, KnowledgeEdge, HeatmapPoint, Skill, GhostData, TimelinePoint, Nudge
+from models import db, Stat, KnowledgeNode, KnowledgeEdge, HeatmapPoint, Skill, GhostData, TimelinePoint, Nudge, FederatedWeight, GlobalModel
 import os
 
 app = Flask(__name__)
@@ -47,6 +47,110 @@ def ingest_data():
     except Exception as e:
         app.logger.error(f"Ingestion Error: {e}")
         return jsonify({'error': str(e)}), 500
+
+# ─── Federated Learning Sync Loop ────────────────────────────────────────────────
+
+FEDERATED_AGGREGATION_THRESHOLD = 3
+
+@app.route('/api/federated/push', methods=['POST'])
+def federated_push():
+    """
+    Receives local model weights from clients.
+    Triggers an aggregation cycle if enough unprocessed weights are collected.
+    """
+    try:
+        data = request.json
+        if not data or 'client_id' not in data or 'weights' not in data:
+            return jsonify({'error': 'Missing client_id or weights'}), 400
+
+        # Save to DB
+        fw = FederatedWeight(
+            client_id=data['client_id'],
+            weights=json.dumps(data['weights'])
+        )
+        db.session.add(fw)
+        db.session.commit()
+
+        # Check if we should run an aggregation cycle
+        unprocessed_count = FederatedWeight.query.filter_by(processed=False).count()
+        if unprocessed_count >= FEDERATED_AGGREGATION_THRESHOLD:
+            _aggregate_federated_weights()
+
+        return jsonify({'status': 'Weights received successfully'}), 200
+    except Exception as e:
+        app.logger.error(f"Federated Push Error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/federated/pull', methods=['GET'])
+def federated_pull():
+    """Returns the latest GlobalModel version and weights."""
+    try:
+        latest_model = GlobalModel.query.order_by(GlobalModel.version.desc()).first()
+        if not latest_model:
+            # If no model exists, return a dummy representation for the MVP clients
+            # (In reality, this would be an ONNX byte array or initial floats)
+            dummy_weights = [0.0] * 10
+            return jsonify({
+                'version': 0,
+                'weights': dummy_weights,
+                'timestamp': None
+            })
+            
+        return jsonify(latest_model.to_dict()), 200
+    except Exception as e:
+        app.logger.error(f"Federated Pull Error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+def _aggregate_federated_weights():
+    """
+    Performs Federated Averaging (FedAvg) on all unprocessed client weights.
+    Creates a new GlobalModel version.
+    """
+    unprocessed_records = FederatedWeight.query.filter_by(processed=False).all()
+    if not unprocessed_records:
+        return
+
+    try:
+        # Deserialize arrays and determine length
+        arrays = [json.loads(record.weights) for record in unprocessed_records]
+        if not arrays:
+            return
+            
+        weight_length = len(arrays[0])
+        num_clients = len(arrays)
+
+        # Basic Federated Averaging (Mean)
+        aggregated = [0.0] * weight_length
+        for arr in arrays:
+            # Ensure safe length to prevent index errors
+            for i in range(min(weight_length, len(arr))):
+                aggregated[i] += arr[i]
+
+        aggregated = [val / num_clients for val in aggregated]
+
+        # Determine next version number
+        latest_model = GlobalModel.query.order_by(GlobalModel.version.desc()).first()
+        next_version = (latest_model.version + 1) if latest_model else 1
+
+        # Save new global model
+        new_global = GlobalModel(
+            version=next_version,
+            weights=json.dumps(aggregated)
+        )
+        db.session.add(new_global)
+
+        # Mark consumed records as processed
+        for record in unprocessed_records:
+            record.processed = True
+
+        db.session.commit()
+        app.logger.info(f"Aggregated {num_clients} client weights into Global Model v{next_version}")
+        
+    except Exception as e:
+        app.logger.error(f"Aggregation Failed: {e}")
+        db.session.rollback()
+
+# ─── Standard Endpoints ─────────────────────────────────────────────────────────
 
 @app.route('/api/stats', methods=['GET'])
 def get_stats():

@@ -109,3 +109,25 @@ class Nudge(db.Model):
             'action': self.action,
             'time': self.time
         }
+
+class FederatedWeight(db.Model):
+    __tablename__ = 'federated_weight'
+    id = db.Column(db.Integer, primary_key=True)
+    client_id = db.Column(db.String(100), nullable=False)
+    weights = db.Column(db.Text, nullable=False) # Store JSON string of float array
+    timestamp = db.Column(db.DateTime, server_default=db.func.now())
+    processed = db.Column(db.Boolean, default=False)
+
+class GlobalModel(db.Model):
+    __tablename__ = 'global_model'
+    id = db.Column(db.Integer, primary_key=True)
+    version = db.Column(db.Integer, nullable=False, unique=True)
+    weights = db.Column(db.Text, nullable=False) # Store JSON string of float array
+    timestamp = db.Column(db.DateTime, server_default=db.func.now())
+
+    def to_dict(self):
+        return {
+            'version': self.version,
+            'weights': self.weights,
+            'timestamp': self.timestamp.isoformat() if self.timestamp else None
+        }

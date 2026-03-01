@@ -1,3 +1,5 @@
+import { startFederatedLoop } from './federated.js';
+
 var LuminaBackground = (function (exports) {
   'use strict';
 
@@ -166,7 +168,7 @@ var LuminaBackground = (function (exports) {
             try {
               session.lastState = classifyState(message.payload.metrics);
               console.debug('[Lumina SW] Classified state:', session.lastState);
-              
+
               // Broadcast the new state to any open side panels or popups
               chrome.runtime.sendMessage({
                 type: MessageType.STATE_UPDATED,
@@ -174,7 +176,7 @@ var LuminaBackground = (function (exports) {
               }).catch(() => {
                 // Ignore errors (happens if no popup/panel is open to receive it)
               });
-              
+
             } catch (err) {
               console.error('[Lumina SW] Classification failed:', err);
             }
@@ -252,6 +254,12 @@ var LuminaBackground = (function (exports) {
       }
     });
 
+    // Start Federated Learning Sync Loop
+    startFederatedLoop(async () => {
+      const session = await loadSession();
+      return { session };
+    });
+
     console.debug('[Lumina SW] Service Worker initialized');
   }
 
@@ -297,7 +305,7 @@ var LuminaBackground = (function (exports) {
 
   // Run the batch syncer on an interval
   if (typeof setInterval !== 'undefined') {
-      setInterval(syncBatchedData, BATCH_INTERVAL_MS);
+    setInterval(syncBatchedData, BATCH_INTERVAL_MS);
   }
 
   // ─── Auto-initialize (only in real Chrome, not during tests) ───────────────────
