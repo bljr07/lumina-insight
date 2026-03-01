@@ -709,6 +709,7 @@ var LuminaContent = (function (exports) {
       _sensors.dwell.start();
       _sensors.jitter.reset();
       _sensors.tabSwitch.reset();
+      _sensors.scroll.reset();
     } catch (err) {
       // Silently ignore — don't disrupt the user's page
       console.debug('[Lumina] Packet emission error:', err.message);

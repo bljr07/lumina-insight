@@ -98,7 +98,7 @@ const stateColorClass = computed(() => {
 
 const stateLabel = computed(() => {
     if (currentState.value === 'PENDING_LOCAL_AI') return 'Analyzing Behavior...';
-    return currentState.value.replace('_', ' ');
+    return currentState.value.replaceAll('_', ' ');
 });
 
 const initExtensionState = () => {

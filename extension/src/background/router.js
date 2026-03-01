@@ -141,7 +141,12 @@ export async function handleMessage(message, sender, sendResponse) {
 
       case MessageType.GET_STATE: {
         const session = await loadSession();
-        sendResponse(session);
+        // Return only safe fields — exclude raw page text (lastPromptedContent)
+        sendResponse({
+          lastState: session.lastState,
+          packetCount: session.packetCount,
+          lastNudge: session.lastNudge,
+        });
         break;
       }
 
