@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { mockKnowledgeGraph } from "@/lib/mockData";
 
 interface Node {
   id: number;
@@ -10,16 +11,16 @@ interface Node {
 }
 
 export const KnowledgeGraph = () => {
-  const { data, isLoading } = useQuery({
+  const { data } = useQuery({
     queryKey: ["knowledge-graph"],
     queryFn: async () => {
       const res = await fetch("/api/knowledge-graph");
       if (!res.ok) throw new Error("Failed to fetch knowledge graph");
       return res.json();
-    }
+    },
+    initialData: mockKnowledgeGraph,
+    retry: 1,
   });
-
-  if (isLoading) return <div className="h-64 animate-pulse bg-muted rounded-xl" />;
 
   const nodes: Node[] = data?.nodes || [];
   const edges: number[][] = data?.edges || [];

@@ -1,5 +1,6 @@
 import { Battery, Brain, Flame, Clock } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
+import { mockStats } from "@/lib/mockData";
 
 const iconMap: Record<string, any> = {
   Flame,
@@ -9,16 +10,16 @@ const iconMap: Record<string, any> = {
 };
 
 export const StatsBar = () => {
-  const { data: stats = [], isLoading } = useQuery({
+  const { data: stats = [] } = useQuery({
     queryKey: ["stats"],
     queryFn: async () => {
       const res = await fetch("/api/stats");
       if (!res.ok) throw new Error("Failed to fetch stats");
       return res.json();
-    }
+    },
+    initialData: mockStats,
+    retry: 1,
   });
-
-  if (isLoading) return <div className="h-24 animate-pulse bg-muted rounded-xl" />;
 
   return (
     <div className="grid grid-cols-4 gap-4 animate-fade-in">

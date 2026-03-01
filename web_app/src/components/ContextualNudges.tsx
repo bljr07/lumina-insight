@@ -1,6 +1,7 @@
 import { Coffee, BookOpen, Zap, ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
+import { mockNudges } from "@/lib/mockData";
 
 const typeStyles: Record<string, string> = {
   wellbeing: "border-lumina-warning/20 bg-lumina-warning/5",
@@ -21,16 +22,16 @@ const iconMap: Record<string, any> = {
 };
 
 export const ContextualNudges = () => {
-  const { data: nudges = [], isLoading } = useQuery({
+  const { data: nudges = [] } = useQuery({
     queryKey: ["nudges"],
     queryFn: async () => {
       const res = await fetch("/api/nudges");
       if (!res.ok) throw new Error("Failed to fetch nudges");
       return res.json();
-    }
+    },
+    initialData: mockNudges,
+    retry: 1,
   });
-
-  if (isLoading) return <div className="h-48 animate-pulse bg-muted rounded-xl" />;
 
   return (
     <div className="bg-card rounded-xl border border-border p-6 animate-fade-in" style={{ animationDelay: "0.25s" }}>

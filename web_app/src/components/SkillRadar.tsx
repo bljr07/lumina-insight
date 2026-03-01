@@ -6,18 +6,19 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import { useQuery } from "@tanstack/react-query";
+import { mockSkillRadar } from "@/lib/mockData";
 
 export const SkillRadar = () => {
-  const { data: skillData = [], isLoading } = useQuery({
+  const { data: skillData = [] } = useQuery({
     queryKey: ["skill-radar"],
     queryFn: async () => {
       const res = await fetch("/api/skill-radar");
       if (!res.ok) throw new Error("Failed to fetch skills");
       return res.json();
-    }
+    },
+    initialData: mockSkillRadar,
+    retry: 1,
   });
-
-  if (isLoading) return <div className="h-64 animate-pulse bg-muted rounded-xl" />;
 
   return (
     <div className="bg-card rounded-xl border border-border p-6 animate-fade-in" style={{ animationDelay: "0.3s" }}>
