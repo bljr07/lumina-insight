@@ -8,6 +8,14 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { mapStateToNudgeAsync } from '@offscreen/state-classifier.js';
 import { LearningState, PlatformType } from '@shared/constants.js';
 
+// Hoist the mock to module scope so dynamic import('@xenova/transformers') is intercepted
+vi.mock('@xenova/transformers', () => {
+  return {
+    pipeline: () => { throw new Error('Transformers.js not available in test env'); },
+    env: { allowLocalModels: false },
+  };
+});
+
 describe('mapStateToNudgeAsync() — Generative Nudges', () => {
   let llmMock;
 

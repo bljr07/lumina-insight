@@ -38,7 +38,7 @@ var LuminaContent = (function (exports) {
 
   /** Sensor configuration defaults */
   const SensorConfig = Object.freeze({
-    THROTTLE_INTERVAL_MS: 100,
+    THROTTLE_INTERVAL_MS: 2000,
     DWELL_STALL_THRESHOLD_MS: 15000,
     RE_READ_CYCLE_THRESHOLD: 3,
     MOUSE_JITTER_NORMALIZATION_MAX: 500, // pixels
@@ -269,6 +269,8 @@ var LuminaContent = (function (exports) {
      */
     onMove(x, y) {
       this._positions.push({ x, y });
+      // Sliding window — cap at 50 positions to prevent unbounded memory growth
+      if (this._positions.length > 50) this._positions.shift();
     }
 
     /**
@@ -701,6 +703,12 @@ var LuminaContent = (function (exports) {
         type: MessageType.BEHAVIORAL_PACKET,
         payload: packet,
       });
+
+      // Reset sensors after emission so metrics reflect the current window only
+      _sensors.dwell.reset();
+      _sensors.dwell.start();
+      _sensors.jitter.reset();
+      _sensors.tabSwitch.reset();
     } catch (err) {
       // Silently ignore — don't disrupt the user's page
       console.debug('[Lumina] Packet emission error:', err.message);

@@ -34,6 +34,7 @@ export async function handleMessage(message, sender, sendResponse) {
 
             // Phase 2: Attempt to utilize the Offscreen ONNX AI Engine
             try {
+              await ensureOffscreen();
               const aiResult = await chrome.runtime.sendMessage({
                 type: MessageType.INFERENCE_REQUEST,
                 payload: message.payload

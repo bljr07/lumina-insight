@@ -116,8 +116,17 @@ var LuminaPopup = (function (exports) {
   chrome.runtime.onMessage.addListener((message) => {
     if (message.type === MessageType.STATE_UPDATED) {
       console.debug('[Lumina Popup] Received live state update:', message.payload);
-      // Re-fetch full session to get packet count & context
-      initPopup(); 
+      // Re-fetch full session to get packet count & context alongside the new state
+      chrome.runtime.sendMessage({ type: MessageType.GET_STATE }).then((session) => {
+        if (session) {
+          // Merge the live state update into the full session
+          session.lastState = (message.payload && message.payload.state) || message.payload;
+          renderState(session);
+        }
+      }).catch(() => {
+        // Fallback: render with minimal info
+        renderState({ lastState: (message.payload && message.payload.state) || message.payload });
+      });
     }
   });
 

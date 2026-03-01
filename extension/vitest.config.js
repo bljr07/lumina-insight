@@ -39,7 +39,6 @@ export default defineConfig({
       '@background': path.resolve(__dirname, 'src/background'),
       '@offscreen': path.resolve(__dirname, 'src/offscreen'),
       '@popup': path.resolve(__dirname, 'src/popup'),
-      '@sidepanel': path.resolve(__dirname, 'src/sidepanel'),
     },
   },
 });

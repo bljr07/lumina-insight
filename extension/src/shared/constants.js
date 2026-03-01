@@ -35,7 +35,7 @@ export const MessageType = Object.freeze({
 
 /** Sensor configuration defaults */
 export const SensorConfig = Object.freeze({
-  THROTTLE_INTERVAL_MS: 100,
+  THROTTLE_INTERVAL_MS: 2000,
   DWELL_STALL_THRESHOLD_MS: 15000,
   RE_READ_CYCLE_THRESHOLD: 3,
   MOUSE_JITTER_NORMALIZATION_MAX: 500, // pixels

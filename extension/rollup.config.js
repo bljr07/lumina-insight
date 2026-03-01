@@ -16,7 +16,6 @@ const aliasPlugin = alias({
     { find: '@background', replacement: path.resolve(__dirname, 'src/background') },
     { find: '@offscreen', replacement: path.resolve(__dirname, 'src/offscreen') },
     { find: '@popup', replacement: path.resolve(__dirname, 'src/popup') },
-    { find: '@sidepanel', replacement: path.resolve(__dirname, 'src/sidepanel') },
   ],
 });
 

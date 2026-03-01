@@ -8,6 +8,9 @@
 /** Default session shape when nothing has been stored */
 export const DEFAULT_SESSION = Object.freeze({
   lastState: null,
+  lastNudge: null,
+  lastPromptedState: null,
+  lastPromptedContent: null,
   packetCount: 0,
 });
 

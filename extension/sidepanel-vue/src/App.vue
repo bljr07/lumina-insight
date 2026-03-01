@@ -21,6 +21,13 @@
           </div>
       </div>
 
+      <!-- AI Nudge Display -->
+      <div v-if="currentNudge" class="glass-panel p-5 space-y-2">
+          <h2 class="text-sm font-semibold uppercase tracking-wider text-ui-muted border-b border-white/5 pb-2">AI Insight</h2>
+          <p class="text-sm text-slate-200 leading-relaxed">{{ currentNudge.message }}</p>
+          <span v-if="currentNudge.is_dynamic" class="inline-block text-[10px] px-2 py-0.5 rounded-full bg-brand-500/20 text-brand-400 font-semibold uppercase tracking-wider">Generated On-Device</span>
+      </div>
+
       <!-- Ghost Mode (Self-Comparison) -->
       <div class="glass-panel p-5">
           <h2 class="text-sm font-semibold uppercase tracking-wider text-ui-muted mb-4 border-b border-white/5 pb-2">Ghost Mode (Self-Comparison)</h2>
@@ -72,6 +79,7 @@ import Chart from 'chart.js/auto';
 const API_BASE = 'http://localhost:5000/api';
 
 const currentState = ref('PENDING_LOCAL_AI');
+const currentNudge = ref(null);
 const ghostData = ref([]);
 const skillData = ref([]);
 const isLoading = ref(true);
@@ -107,7 +115,12 @@ const initExtensionState = () => {
 
         const messageListener = (message) => {
             if (message.type === 'STATE_UPDATED') {
-                currentState.value = message.payload;
+                if (message.payload && typeof message.payload === 'object') {
+                    currentState.value = message.payload.state;
+                    currentNudge.value = message.payload.nudge || null;
+                } else {
+                    currentState.value = message.payload;
+                }
             }
         };
         chrome.runtime.onMessage.addListener(messageListener);

@@ -6,7 +6,6 @@
  * The ONNX model can override these classifications when available.
  */
 import { LearningState, PlatformType, SensorConfig } from '../shared/constants.js';
-import { pipeline, env } from '@xenova/transformers';
 
 // ─── Thresholds ────────────────────────────────────────────────────────────────
 
@@ -66,9 +65,11 @@ export function classifyState(metrics) {
 }
 
 // ─── Nudge Mapping ─────────────────────────────────────────────────────────────
+import { mapStateToNudge as mapStateToNudgeBase } from '../shared/nudge.js';
 
 /**
  * Map a learning state + platform context to an actionable nudge.
+ * Extends the shared base nudge with platform-aware messages and priority.
  *
  * @param {string} state - LearningState value
  * @param {string} platformType - PlatformType value
@@ -80,40 +81,28 @@ export function mapStateToNudge(state, platformType) {
     return null;
   }
 
+  const base = mapStateToNudgeBase(state);
+  if (!base || base.type === 'idle' || base.type === 'pending') return null;
+
   // STRUGGLING nudges depend on platform
   if (state === LearningState.STRUGGLING) {
-    const base = { type: 'struggling', title: 'Take a Breath', priority: 'HIGH' };
+    const nudge = { ...base, priority: 'HIGH' };
     if (platformType === PlatformType.QUIZ) {
-      return { ...base, message: 'It looks like you might be stuck. Would you like a hint?' };
+      nudge.message = 'It looks like you might be stuck. Would you like a hint?';
+    } else if (platformType === PlatformType.POLL) {
+      nudge.message = 'Try breaking this down step by step.';
+    } else if (platformType === PlatformType.LMS_READING) {
+      nudge.message = 'This section seems challenging. Would you like a simplified explanation?';
     }
-    if (platformType === PlatformType.POLL) {
-      return { ...base, message: 'Try breaking this down step by step.' };
-    }
-    if (platformType === PlatformType.LMS_READING) {
-      return { ...base, message: 'This section seems challenging. Would you like a simplified explanation?' };
-    }
-    // Default for STRUGGLING on unknown platform
-    return { ...base, message: 'Need some help?' };
+    return nudge;
   }
 
-  // RE_READING nudge
   if (state === LearningState.RE_READING) {
-    return {
-      type: 're-reading',
-      title: 'Reviewing',
-      priority: 'MEDIUM',
-      message: 'You seem to be re-reading this section. Here\'s a quick summary.',
-    };
+    return { ...base, priority: 'MEDIUM' };
   }
 
-  // STALLED nudge
   if (state === LearningState.STALLED) {
-    return {
-      type: 'stalled',
-      title: 'Need a Hint?',
-      priority: 'LOW',
-      message: 'You\'ve been on this for a while. Consider taking a short break.',
-    };
+    return { ...base, priority: 'LOW' };
   }
 
   return null;
@@ -181,8 +170,11 @@ async function generateNudgeFromLLM(promptText, fallbackPrompt) {
   
   // Phase 4: Fallback to Transformers.js WebAssembly / WebGPU (UAC 2 Compliance)
   try {
-    console.log('[Lumina Offscreen] 🧠 Falling back to local Transformers.js model (Xenova/LaMini-Flan-T5-77M)...');
+    console.log('[Lumina Offscreen] \ud83e\udde0 Falling back to local Transformers.js model (Xenova/LaMini-Flan-T5-77M)...');
     
+    // Dynamic import so a broken node_modules never crashes the rule-based classifier
+    const { pipeline, env } = await import('@xenova/transformers');
+
     // Disable local model lookup to allow downloading directly from Hugging Face Edge cache
     env.allowLocalModels = false;
     
@@ -208,7 +200,7 @@ async function generateNudgeFromLLM(promptText, fallbackPrompt) {
 
     if (output && output.length > 0 && output[0].generated_text) {
       const generatedText = output[0].generated_text.trim();
-      console.log(`[Lumina Offscreen] ✨ Received AI Response (Transformers.js): \n\n${generatedText}`);
+      console.log(`[Lumina Offscreen] \u2728 Received AI Response (Transformers.js): \n\n${generatedText}`);
       return { message: generatedText, is_dynamic: true };
     }
   } catch (err) {

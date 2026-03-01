@@ -111,6 +111,8 @@ export class MouseJitterTracker {
    */
   onMove(x, y) {
     this._positions.push({ x, y });
+    // Sliding window — cap at 50 positions to prevent unbounded memory growth
+    if (this._positions.length > 50) this._positions.shift();
   }
 
   /**

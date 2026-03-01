@@ -41,6 +41,12 @@ function emitPacket() {
       type: MessageType.BEHAVIORAL_PACKET,
       payload: packet,
     });
+
+    // Reset sensors after emission so metrics reflect the current window only
+    _sensors.dwell.reset();
+    _sensors.dwell.start();
+    _sensors.jitter.reset();
+    _sensors.tabSwitch.reset();
   } catch (err) {
     // Silently ignore — don't disrupt the user's page
     console.debug('[Lumina] Packet emission error:', err.message);
