@@ -9,6 +9,11 @@
 import { initRouter } from './router.js';
 import { saveSession, DEFAULT_SESSION } from './storage.js';
 
+// ---- Inject Node.js require polyfill for onnxruntime-web fallback ----
+if (typeof globalThis.require === 'undefined') {
+  globalThis.require = function() { return {}; };
+}
+
 // ─── Initialization ────────────────────────────────────────────────────────────
 
 /**

@@ -3,6 +3,9 @@ import alias from '@rollup/plugin-alias';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
+import commonjs from '@rollup/plugin-commonjs';
+import json from '@rollup/plugin-json';
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -17,7 +20,12 @@ const aliasPlugin = alias({
   ],
 });
 
-const plugins = [aliasPlugin, nodeResolve({ browser: true, preferBuiltins: false })];
+const plugins = [
+  aliasPlugin, 
+  nodeResolve({ browser: true, preferBuiltins: false }),
+  commonjs(),
+  json()
+];
 
 export default [
   // Content Script bundle

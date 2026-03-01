@@ -21,7 +21,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       return true;
     }
 
-    runInference(session, message.payload)
+    runInference(session, message.payload.metrics)
       .then((state) => {
         sendResponse({ state });
       })
