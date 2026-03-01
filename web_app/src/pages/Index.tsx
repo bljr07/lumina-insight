@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import { DashboardSidebar } from "@/components/DashboardSidebar";
 import { StatsBar } from "@/components/StatsBar";
 import { PulseHeatmap } from "@/components/PulseHeatmap";
@@ -6,7 +7,41 @@ import { GhostMode } from "@/components/GhostMode";
 import { SkillRadar } from "@/components/SkillRadar";
 import { ContextualNudges } from "@/components/ContextualNudges";
 
+const getGreeting = () => {
+  const hour = new Date().getHours();
+  if (hour < 12) return "Good morning";
+  if (hour < 17) return "Good afternoon";
+  return "Good evening";
+};
+
 const Index = () => {
+  const [firstName, setFirstName] = useState(() => {
+    const name = localStorage.getItem("lumina-user-name") || "Alex Johnson";
+    return name.split(" ")[0];
+  });
+  const [greeting, setGreeting] = useState(getGreeting);
+
+  // Listen for localStorage changes from the Settings modal
+  useEffect(() => {
+    const handleStorage = () => {
+      const name = localStorage.getItem("lumina-user-name") || "Alex Johnson";
+      setFirstName(name.split(" ")[0]);
+    };
+    window.addEventListener("storage", handleStorage);
+
+    // Also poll for same-tab localStorage changes (storage event only fires cross-tab)
+    const interval = setInterval(() => {
+      const name = localStorage.getItem("lumina-user-name") || "Alex Johnson";
+      setFirstName(name.split(" ")[0]);
+      setGreeting(getGreeting());
+    }, 2000);
+
+    return () => {
+      window.removeEventListener("storage", handleStorage);
+      clearInterval(interval);
+    };
+  }, []);
+
   return (
     <div className="min-h-screen bg-background lumina-gradient-bg">
       <DashboardSidebar />
@@ -14,7 +49,7 @@ const Index = () => {
       <main className="ml-64 p-8">
         {/* Header */}
         <div className="mb-8 animate-fade-in">
-          <p className="text-sm text-muted-foreground mb-1">Good evening, Alex</p>
+          <p className="text-sm text-muted-foreground mb-1">{greeting}, {firstName}</p>
           <h1 className="text-3xl font-bold text-foreground">
             Your Learning <span className="glow-text">Pulse</span>
           </h1>

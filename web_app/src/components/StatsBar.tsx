@@ -1,12 +1,28 @@
 import { Battery, Brain, Flame, Clock } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { mockStats } from "@/lib/mockData";
+import { motion } from "framer-motion";
 
 const iconMap: Record<string, any> = {
   Flame,
   Battery,
   Brain,
   Clock,
+};
+
+const cardVariants = {
+  hidden: { opacity: 0, y: 20, scale: 0.95 },
+  visible: (i: number) => ({
+    opacity: 1,
+    y: 0,
+    scale: 1,
+    transition: {
+      type: "spring",
+      stiffness: 200,
+      damping: 18,
+      delay: i * 0.1,
+    },
+  }),
 };
 
 export const StatsBar = () => {
@@ -22,13 +38,18 @@ export const StatsBar = () => {
   });
 
   return (
-    <div className="grid grid-cols-4 gap-4 animate-fade-in">
-      {stats.map((stat: any) => {
+    <div className="grid grid-cols-4 gap-4">
+      {stats.map((stat: any, i: number) => {
         const Icon = iconMap[stat.icon];
         return (
-          <div
+          <motion.div
             key={stat.label}
-            className="bg-card rounded-xl border border-border p-4 hover:glow-border transition-all duration-300"
+            variants={cardVariants}
+            custom={i}
+            initial="hidden"
+            animate="visible"
+            whileHover={{ y: -4, transition: { type: "spring", stiffness: 400, damping: 15 } }}
+            className="bg-card rounded-xl border border-border p-4 hover:glow-border transition-all duration-300 cursor-default"
           >
             <div className="flex items-center gap-2 mb-3">
               <div className={`w-7 h-7 rounded-lg ${stat.bg} flex items-center justify-center`}>
@@ -38,7 +59,7 @@ export const StatsBar = () => {
             </div>
             <p className="text-2xl font-bold text-foreground">{stat.value}</p>
             <p className="text-xs text-muted-foreground mt-1">{stat.sub}</p>
-          </div>
+          </motion.div>
         );
       })}
     </div>
