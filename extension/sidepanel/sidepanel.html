@@ -6,8 +6,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Lumina Insight — Ghost Mode</title>
 
-  <!-- Load Tailwind CSS via CDN -->
-  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Load Tailwind CSS Locally -->
+  <script src="tailwindcss.js"></script>
   <script>
     tailwind.config = {
       theme: {
@@ -31,14 +31,14 @@
     }
   </script>
 
-  <!-- Load Vue 3 via CDN (global build) -->
-  <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+  <!-- Load Vue 3 Locally -->
+  <script src="vue.global.js"></script>
 
   <!-- Custom Scoped Styles -->
   <link rel="stylesheet" href="styles.css">
 
   <!-- Chart.js for Radar/Timeline Visualization -->
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="chart.js"></script>
 </head>
 
 <body class="bg-ui-bg text-ui-text min-h-screen font-sans antialiased overflow-x-hidden p-4">
