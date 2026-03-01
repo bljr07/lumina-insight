@@ -1,4 +1,9 @@
-/* Popup Styles — Lumina Insight */
+/* ═══════════════════════════════════════════════════════════════
+   Lumina Insight — Popup Styles
+   Design System: Unified with Side Panel (Glassmorphism / Teal)
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ─── Reset ─────────────────────────────────────────────────── */
 *,
 *::before,
 *::after {
@@ -7,15 +12,19 @@
   box-sizing: border-box;
 }
 
+/* ─── Base ──────────────────────────────────────────────────── */
 body {
-  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
   width: 320px;
-  background: #0f0f1a;
-  color: #eaeaea;
+  color: #f8fafc;  /* ui-text */
+  background-color: #0f172a;  /* Slate 900 — matches side panel */
+  background-image:
+    radial-gradient(at 0% 0%, hsla(170, 100%, 74%, 0.15) 0px, transparent 50%),
+    radial-gradient(at 100% 100%, hsla(253, 16%, 7%, 1) 0px, transparent 50%);
+  background-attachment: fixed;
 }
 
-/* ─── Header ──────────────────────────────────────── */
-
+/* ─── Container ─────────────────────────────────────────────── */
 .popup-container {
   padding: 20px;
   display: flex;
@@ -23,6 +32,7 @@ body {
   gap: 16px;
 }
 
+/* ─── Header ────────────────────────────────────────────────── */
 .popup-header {
   display: flex;
   align-items: center;
@@ -32,59 +42,120 @@ body {
 h1 {
   font-size: 1.15rem;
   font-weight: 700;
-  background: linear-gradient(135deg, #6c63ff, #e040fb);
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  letter-spacing: -0.02em;
 }
 
-.badge {
-  font-size: 0.65rem;
-  font-weight: 600;
-  padding: 2px 8px;
-  border-radius: 50px;
-  background: rgba(108, 99, 255, 0.15);
-  color: #9d97ff;
-  border: 1px solid rgba(108, 99, 255, 0.3);
-  letter-spacing: 0.5px;
+.brand-icon {
+  color: #14b8a6; /* brand-500 teal — matches side panel */
+  font-size: 1rem;
 }
 
-/* ─── State Card ──────────────────────────────────── */
+.pulse-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #14b8a6; /* brand-500 */
+  animation: pulse-glow 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
 
-.state-card {
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+/* ─── Glass Panel (shared card style) ───────────────────────── */
+.glass-panel {
+  background: rgba(30, 41, 59, 0.6); /* Slate 800 w/ opacity */
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 12px;
-  padding: 16px;
+}
+
+/* ─── State Card ────────────────────────────────────────────── */
+.state-card {
+  padding: 20px 16px;
   text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
 }
 
 .label {
-  font-size: 0.7rem;
+  font-size: 0.65rem;
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 1px;
-  color: #666;
-  margin-bottom: 6px;
+  letter-spacing: 1.2px;
+  color: #94a3b8; /* ui-muted — matches side panel */
 }
 
-.state-value {
-  font-size: 1.35rem;
+/* ─── State Pill (matches side panel rounded pill) ──────────── */
+.state-pill {
+  display: inline-block;
+  padding: 6px 24px;
+  border-radius: 9999px;
+  border: 1px solid transparent;
+  font-size: 0.8rem;
   font-weight: 700;
-  transition: color 0.3s ease;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  transition: all 0.5s ease;
 }
 
-/* State colors */
-.state-focused { color: #4ade80; }
-.state-struggling { color: #f87171; }
-.state-stalled { color: #fbbf24; }
-.state-deep-reading { color: #60a5fa; }
-.state-re-reading { color: #c084fc; }
-.state-pending { color: #94a3b8; }
-.state-idle { color: #64748b; }
+/* State colors — exactly match Vue side panel Tailwind classes */
+.state-focused {
+  color: #34d399;  /* emerald-400 */
+  background: rgba(52, 211, 153, 0.1);
+  border-color: rgba(52, 211, 153, 0.3);
+  box-shadow: 0 0 15px rgba(52, 211, 153, 0.3);
+  animation: pulse-glow 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
 
-/* ─── Info Row ────────────────────────────────────── */
+.state-struggling {
+  color: #fb7185;  /* rose-400 */
+  background: rgba(251, 113, 133, 0.1);
+  border-color: rgba(251, 113, 133, 0.3);
+  box-shadow: 0 0 15px rgba(251, 113, 133, 0.3);
+  animation: pulse-glow 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
 
+.state-stalled {
+  color: #fbbf24;  /* amber-400 */
+  background: rgba(251, 191, 36, 0.1);
+  border-color: rgba(251, 191, 36, 0.3);
+  box-shadow: 0 0 15px rgba(251, 191, 36, 0.3);
+  animation: pulse-glow 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+.state-deep-reading {
+  color: #818cf8;  /* indigo-400 */
+  background: rgba(129, 140, 248, 0.1);
+  border-color: rgba(129, 140, 248, 0.3);
+  box-shadow: 0 0 15px rgba(129, 140, 248, 0.3);
+  animation: pulse-glow 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+.state-re-reading {
+  color: #38bdf8;  /* sky-400 */
+  background: rgba(56, 189, 248, 0.1);
+  border-color: rgba(56, 189, 248, 0.3);
+  box-shadow: 0 0 15px rgba(56, 189, 248, 0.3);
+  animation: pulse-glow 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+.state-pending {
+  color: #94a3b8;  /* slate-400 */
+  background: rgba(148, 163, 184, 0.08);
+  border-color: rgba(148, 163, 184, 0.2);
+}
+
+.state-idle {
+  color: #64748b;  /* slate-500 */
+  background: rgba(100, 116, 139, 0.05);
+  border-color: rgba(100, 116, 139, 0.2);
+}
+
+/* ─── Info Row ──────────────────────────────────────────────── */
 .info-row {
   display: flex;
   gap: 12px;
@@ -92,28 +163,63 @@ h1 {
 
 .info-item {
   flex: 1;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 10px;
-  padding: 12px;
+  padding: 14px;
   text-align: center;
 }
 
 .info-value {
-  font-size: 0.95rem;
+  font-size: 0.9rem;
   font-weight: 600;
-  color: #d1d5db;
-  margin-top: 4px;
+  color: #e2e8f0; /* slate-200 */
+  margin-top: 6px;
 }
 
-/* ─── Status Bar ──────────────────────────────────── */
-
+/* ─── Status Bar ────────────────────────────────────────────── */
 .status-bar {
-  font-size: 0.75rem;
-  color: #4ade80;
+  font-size: 0.7rem;
+  font-weight: 500;
+  color: #14b8a6; /* brand-500 teal */
   text-align: center;
   padding: 8px;
-  background: rgba(74, 222, 128, 0.08);
+  background: rgba(20, 184, 166, 0.08);
   border-radius: 8px;
-  border: 1px solid rgba(74, 222, 128, 0.15);
+  border: 1px solid rgba(20, 184, 166, 0.15);
+}
+
+/* ─── Privacy Footer ────────────────────────────────────────── */
+.privacy-footer {
+  font-size: 0.65rem;
+  text-align: center;
+  color: #94a3b8; /* ui-muted */
+  padding-top: 4px;
+}
+
+/* ─── Animation ─────────────────────────────────────────────── */
+@keyframes pulse-glow {
+  0%, 100% {
+    opacity: 0.85;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.04);
+  }
+}
+
+/* ─── Scrollbar (matches side panel) ────────────────────────── */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.3);
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(148, 163, 184, 0.5);
 }

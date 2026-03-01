@@ -4,32 +4,39 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Lumina Insight</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="popup.css" />
 </head>
 <body>
   <div class="popup-container">
     <header class="popup-header">
-      <h1>Lumina Insight</h1>
-      <span class="badge">MV3</span>
+      <h1><span class="brand-icon">◆</span> Lumina Insight</h1>
+      <div class="pulse-dot"></div>
     </header>
 
-    <div class="state-card">
-      <div class="label">Learning State</div>
-      <div id="state-display" data-testid="state-display" class="state-value">--</div>
+    <div class="glass-panel state-card">
+      <div class="label">Current Learning State</div>
+      <div id="state-display" data-testid="state-display" class="state-pill state-idle">--</div>
     </div>
 
     <div class="info-row">
-      <div class="info-item">
+      <div class="glass-panel info-item">
         <div class="label">Platform</div>
         <div id="platform-display" data-testid="platform-display" class="info-value">--</div>
       </div>
-      <div class="info-item">
+      <div class="glass-panel info-item">
         <div class="label">Packets</div>
         <div id="packet-count" data-testid="packet-count" class="info-value">0</div>
       </div>
     </div>
 
     <div id="status" data-testid="status" class="status-bar">Loading...</div>
+
+    <div class="privacy-footer">
+      Data strictly private. Processed on-device.
+    </div>
   </div>
   <script src="popup.js"></script>
 </body>
