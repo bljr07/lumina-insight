@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ArrowRight, ArrowLeft, Check, X, RotateCcw, BookOpen } from "lucide-react";
+import { fireConfetti } from "@/lib/confetti";
 
 interface Card {
     question: string;
@@ -47,6 +48,10 @@ export const BridgingExercise = ({ open, onClose }: BridgingExerciseProps) => {
         setShowHint(false);
         if (idx + 1 >= cards.length) {
             setDone(true);
+            // Fire confetti for great scores!
+            if (newScore.correct >= cards.length * 0.8) {
+                setTimeout(() => fireConfetti(), 300);
+            }
         } else {
             setIdx(idx + 1);
         }

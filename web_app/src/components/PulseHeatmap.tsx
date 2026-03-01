@@ -109,12 +109,15 @@ export const PulseHeatmap = () => {
             {heatmapData.map((week: number[], wi: number) => (
               <div key={wi} className="flex flex-col gap-1">
                 {week.map((val: number, di: number) => (
-                  <div
+                  <motion.div
                     key={di}
                     className={cn(
                       "w-3.5 h-3.5 rounded-sm transition-all hover:ring-2 hover:ring-primary/50 hover:scale-125 cursor-pointer",
                       intensityClasses[val]
                     )}
+                    initial={{ opacity: 0, scale: 0 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ delay: wi * 0.03 + di * 0.01, duration: 0.2, ease: "easeOut" }}
                     onMouseEnter={(e) => handleMouseEnter(wi, di, e)}
                     onMouseLeave={() => setTooltip(null)}
                   />
