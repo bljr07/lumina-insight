@@ -1,9 +1,12 @@
+import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
 import { mockHeatmapData } from "@/lib/mockData";
+import { motion, AnimatePresence } from "framer-motion";
 
 const dayLabels = ["Mon", "", "Wed", "", "Fri", "", "Sun"];
 const monthLabels = ["Jan", "Feb", "Mar"];
+const dayNames = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 
 const intensityClasses = [
   "bg-muted",
@@ -13,7 +16,35 @@ const intensityClasses = [
   "bg-lumina-success",
 ];
 
+const intensityLabels = ["No activity", "Light study", "Moderate study", "Focused study", "Deep work"];
+const mockTopics = [
+  ["REST APIs", "HTTP Methods"],
+  ["SQL Joins", "Normalization"],
+  ["Docker Basics", "Containers"],
+  ["Auth & JWT", "OAuth2"],
+  ["Microservices", "API Gateway"],
+  ["CI/CD Pipeline", "GitHub Actions"],
+  ["Load Balancing", "Caching"],
+  ["System Design", "Scalability"],
+];
+
+// Generate a mock date from week/day indices (12 weeks back from "today")
+function getMockDate(weekIdx: number, dayIdx: number): string {
+  const now = new Date();
+  const weeksAgo = 11 - weekIdx;
+  const d = new Date(now);
+  d.setDate(d.getDate() - weeksAgo * 7 - (6 - dayIdx));
+  return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}
+
+function getMockHours(val: number): string {
+  if (val === 0) return "0h";
+  return `${(val * 1.2 + Math.random() * 0.5).toFixed(1)}h`;
+}
+
 export const PulseHeatmap = () => {
+  const [tooltip, setTooltip] = useState<{ weekIdx: number; dayIdx: number; x: number; y: number } | null>(null);
+
   const { data: heatmapData = [] } = useQuery({
     queryKey: ["pulse-heatmap"],
     queryFn: async () => {
@@ -24,6 +55,19 @@ export const PulseHeatmap = () => {
     initialData: mockHeatmapData,
     retry: 1,
   });
+
+  const handleMouseEnter = (weekIdx: number, dayIdx: number, e: React.MouseEvent) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const parent = e.currentTarget.closest(".heatmap-container")?.getBoundingClientRect();
+    if (parent) {
+      setTooltip({
+        weekIdx,
+        dayIdx,
+        x: rect.left - parent.left + rect.width / 2,
+        y: rect.top - parent.top - 8,
+      });
+    }
+  };
 
   return (
     <div className="bg-card rounded-xl border border-border p-6 animate-fade-in" style={{ animationDelay: "0.1s" }}>
@@ -41,7 +85,7 @@ export const PulseHeatmap = () => {
         </div>
       </div>
 
-      <div className="flex gap-1">
+      <div className="flex gap-1 relative heatmap-container">
         {/* Day labels */}
         <div className="flex flex-col gap-1 mr-2 pt-6">
           {dayLabels.map((label, i) => (
@@ -68,16 +112,44 @@ export const PulseHeatmap = () => {
                   <div
                     key={di}
                     className={cn(
-                      "w-3.5 h-3.5 rounded-sm transition-colors hover:ring-1 hover:ring-primary/50 cursor-pointer",
+                      "w-3.5 h-3.5 rounded-sm transition-all hover:ring-2 hover:ring-primary/50 hover:scale-125 cursor-pointer",
                       intensityClasses[val]
                     )}
-                    title={`Week ${wi + 1}, Day ${di + 1}: Intensity ${val}`}
+                    onMouseEnter={(e) => handleMouseEnter(wi, di, e)}
+                    onMouseLeave={() => setTooltip(null)}
                   />
                 ))}
               </div>
             ))}
           </div>
         </div>
+
+        {/* Tooltip */}
+        <AnimatePresence>
+          {tooltip && (
+            <motion.div
+              className="absolute z-10 bg-card border border-border rounded-lg px-3 py-2 shadow-xl pointer-events-none"
+              style={{ left: tooltip.x, top: tooltip.y, transform: "translate(-50%, -100%)" }}
+              initial={{ opacity: 0, y: 4 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.15 }}
+            >
+              <p className="text-xs font-medium text-foreground">{getMockDate(tooltip.weekIdx, tooltip.dayIdx)} · {dayNames[tooltip.dayIdx]}</p>
+              <p className="text-[11px] text-muted-foreground mt-0.5">
+                Study time: <span className="text-foreground font-medium">{getMockHours(heatmapData[tooltip.weekIdx]?.[tooltip.dayIdx] || 0)}</span>
+              </p>
+              <p className="text-[11px] text-muted-foreground">
+                Level: <span className="text-foreground">{intensityLabels[heatmapData[tooltip.weekIdx]?.[tooltip.dayIdx] || 0]}</span>
+              </p>
+              {(heatmapData[tooltip.weekIdx]?.[tooltip.dayIdx] || 0) > 0 && (
+                <p className="text-[10px] text-primary mt-0.5">
+                  📚 {mockTopics[(tooltip.weekIdx + tooltip.dayIdx) % mockTopics.length].join(", ")}
+                </p>
+              )}
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
       {/* Burnout zones */}

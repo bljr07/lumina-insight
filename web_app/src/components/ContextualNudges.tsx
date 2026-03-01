@@ -5,6 +5,8 @@ import { useQuery } from "@tanstack/react-query";
 import { mockNudges } from "@/lib/mockData";
 import { motion } from "framer-motion";
 import { BreakTimer } from "@/components/BreakTimer";
+import { BridgingExercise } from "@/components/BridgingExercise";
+import { FocusMode } from "@/components/FocusMode";
 
 const typeStyles: Record<string, string> = {
   wellbeing: "border-lumina-warning/20 bg-lumina-warning/5",
@@ -31,7 +33,7 @@ const nudgeVariants = {
     y: 0,
     scale: 1,
     transition: {
-      type: "spring",
+      type: "spring" as const,
       stiffness: 200,
       damping: 18,
       delay: 0.1 + i * 0.12,
@@ -41,6 +43,8 @@ const nudgeVariants = {
 
 export const ContextualNudges = () => {
   const [breakTimerOpen, setBreakTimerOpen] = useState(false);
+  const [bridgingOpen, setBridgingOpen] = useState(false);
+  const [focusActive, setFocusActive] = useState(false);
 
   const { data: nudges = [] } = useQuery({
     queryKey: ["nudges"],
@@ -54,9 +58,12 @@ export const ContextualNudges = () => {
   });
 
   const handleAction = (nudge: any) => {
-    // Open break timer for the "Take a Breather" nudge
     if (nudge.type === "wellbeing") {
       setBreakTimerOpen(true);
+    } else if (nudge.type === "bridge") {
+      setBridgingOpen(true);
+    } else if (nudge.type === "flow") {
+      setFocusActive(true);
     }
   };
 
@@ -115,8 +122,10 @@ export const ContextualNudges = () => {
         </p>
       </motion.div>
 
-      {/* Break Timer Dialog */}
+      {/* Dialogs */}
       <BreakTimer open={breakTimerOpen} onClose={() => setBreakTimerOpen(false)} />
+      <BridgingExercise open={bridgingOpen} onClose={() => setBridgingOpen(false)} />
+      <FocusMode active={focusActive} onExit={() => setFocusActive(false)} />
     </div>
   );
 };
