@@ -76,6 +76,70 @@
     --shadow-elevated: 0 8px 40px -8px hsl(228 12% 4% / 0.6);
   }
 
+  .light {
+    --background: 40 30% 97%;
+    --foreground: 228 15% 15%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 228 15% 15%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 228 15% 15%;
+
+    --primary: 38 92% 50%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 40 20% 92%;
+    --secondary-foreground: 228 10% 30%;
+
+    --muted: 40 15% 93%;
+    --muted-foreground: 220 10% 45%;
+
+    --accent: 28 80% 50%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 72% 50%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 40 15% 88%;
+    --input: 40 15% 88%;
+    --ring: 38 92% 50%;
+
+    /* Lumina custom tokens (light) */
+    --lumina-glow: 38 92% 50%;
+    --lumina-glow-soft: 38 60% 55%;
+    --lumina-success: 160 55% 38%;
+    --lumina-warning: 30 85% 48%;
+    --lumina-info: 210 65% 48%;
+    --lumina-pulse-low: 160 45% 38%;
+    --lumina-pulse-mid: 38 75% 48%;
+    --lumina-pulse-high: 0 60% 48%;
+    --lumina-surface: 40 20% 95%;
+    --lumina-surface-hover: 40 15% 92%;
+    --lumina-graph-node: 38 80% 50%;
+    --lumina-graph-edge: 220 12% 75%;
+    --lumina-ghost: 200 50% 48%;
+
+    --sidebar-background: 40 25% 96%;
+    --sidebar-foreground: 220 10% 40%;
+    --sidebar-primary: 38 92% 50%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 40 15% 92%;
+    --sidebar-accent-foreground: 228 15% 15%;
+    --sidebar-border: 40 15% 88%;
+    --sidebar-ring: 38 92% 50%;
+
+    /* Gradients (light) */
+    --gradient-glow: linear-gradient(135deg, hsl(38 92% 50%), hsl(28 80% 45%));
+    --gradient-surface: linear-gradient(180deg, hsl(40 20% 95%), hsl(40 30% 97%));
+    --gradient-radial-glow: radial-gradient(ellipse at 50% 0%, hsl(38 92% 50% / 0.06), transparent 60%);
+
+    /* Shadows (light) */
+    --shadow-glow: 0 0 30px -5px hsl(38 92% 50% / 0.15);
+    --shadow-card: 0 4px 24px -4px hsl(220 15% 85% / 0.4);
+    --shadow-elevated: 0 8px 40px -8px hsl(220 15% 85% / 0.5);
+  }
+
   * {
     @apply border-border;
   }
