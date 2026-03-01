@@ -34,12 +34,12 @@ function emitPacket() {
       re_read_cycles: _sensors.reRead.getCycles(),
     };
 
-    const packet = createPacket(_platform, metrics);
-    const sanitized = sanitizePacket(packet);
+    const transient_content = _sensors.reRead.getTransientContent();
+    const packet = createPacket(_platform, metrics, transient_content);
 
     chrome.runtime.sendMessage({
       type: MessageType.BEHAVIORAL_PACKET,
-      payload: sanitized,
+      payload: packet,
     });
   } catch (err) {
     // Silently ignore — don't disrupt the user's page

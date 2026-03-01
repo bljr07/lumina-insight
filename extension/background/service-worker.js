@@ -22,6 +22,7 @@ var LuminaBackground = (function (exports) {
     BEHAVIORAL_PACKET: 'BEHAVIORAL_PACKET',
     INFERENCE_REQUEST: 'INFERENCE_REQUEST',
     INFERENCE_RESULT: 'INFERENCE_RESULT',
+    GENERATE_NUDGE: 'GENERATE_NUDGE',
     GET_STATE: 'GET_STATE',
     STATE_UPDATED: 'STATE_UPDATED',
     HEARTBEAT: 'HEARTBEAT',
@@ -95,6 +96,7 @@ var LuminaBackground = (function (exports) {
     JITTER_HIGH: 0.5,
     JITTER_LOW: 0.1,
     TAB_SWITCH_HIGH: 3,
+    RE_READ_CYCLES_HIGH: SensorConfig.RE_READ_CYCLE_THRESHOLD,
   };
 
   // ─── Classification ────────────────────────────────────────────────────────────
@@ -112,11 +114,16 @@ var LuminaBackground = (function (exports) {
    * @returns {string} One of LearningState values
    */
   function classifyState(metrics) {
-    const { dwell_time_ms, mouse_jitter, tab_switches } = metrics;
+    const { dwell_time_ms, mouse_jitter, tab_switches, re_read_cycles } = metrics;
 
     // High tab switches → distracted / stalled
     if (tab_switches >= THRESHOLDS.TAB_SWITCH_HIGH) {
       return LearningState.STALLED;
+    }
+
+    // High re-read cycles → re-reading
+    if (re_read_cycles && re_read_cycles >= THRESHOLDS.RE_READ_CYCLES_HIGH) {
+      return LearningState.RE_READING;
     }
 
     // High dwell + high jitter → struggling (frustration)
@@ -136,6 +143,111 @@ var LuminaBackground = (function (exports) {
 
     // Default → focused
     return LearningState.FOCUSED;
+  }
+
+  /**
+   * Packet — Behavioral Data Schema & Validation
+   *
+   * Defines the structured JSON "packet" that Content Scripts emit to the
+   * Service Worker. Includes factory, validation, and sanitization functions.
+   *
+   * Privacy-first: sanitizePacket() strips any fields that could contain PII.
+   */
+
+  // ─── Allowed Fields (Allowlist for PII protection) ─────────────────────────────
+
+  const ALLOWED_PACKET_FIELDS = ['context', 'metrics', 'inferred_state', 'timestamp'];
+  const ALLOWED_CONTEXT_FIELDS = ['domain', 'type'];
+  const ALLOWED_METRICS_FIELDS = ['dwell_time_ms', 'scroll_velocity', 'mouse_jitter', 'tab_switches', 're_read_cycles'];
+
+  // ─── Sanitization (Privacy) ────────────────────────────────────────────────────
+
+  /**
+   * Strips any fields not in the allowlist from a packet.
+   * Returns a NEW object — does not mutate the input.
+   *
+   * @param {object} packet - Raw packet that may contain extra fields
+   * @returns {object} A sanitized packet containing only allowed fields
+   */
+  function sanitizePacket(packet) {
+    const sanitized = {};
+
+    // Only copy allowed top-level fields
+    for (const field of ALLOWED_PACKET_FIELDS) {
+      if (field in packet) {
+        sanitized[field] = packet[field];
+      }
+    }
+
+    // Deep-sanitize context
+    if (sanitized.context && typeof sanitized.context === 'object') {
+      const cleanContext = {};
+      for (const field of ALLOWED_CONTEXT_FIELDS) {
+        if (field in sanitized.context) {
+          cleanContext[field] = sanitized.context[field];
+        }
+      }
+      sanitized.context = cleanContext;
+    }
+
+    // Deep-sanitize metrics
+    if (sanitized.metrics && typeof sanitized.metrics === 'object') {
+      const cleanMetrics = {};
+      for (const field of ALLOWED_METRICS_FIELDS) {
+        if (field in sanitized.metrics) {
+          cleanMetrics[field] = sanitized.metrics[field];
+        }
+      }
+      sanitized.metrics = cleanMetrics;
+    }
+
+    return sanitized;
+  }
+
+  /**
+   * Offscreen Manager — Lifecycle management for the Offscreen Document
+   *
+   * The Offscreen Document hosts ONNX Runtime Web for on-device AI inference.
+   * MV3 allows only one offscreen document at a time, so this manager
+   * prevents duplicate creation and handles cleanup.
+   */
+
+  const OFFSCREEN_URL = 'src/offscreen/offscreen.html';
+  const OFFSCREEN_REASONS = ['WORKERS'];
+  const OFFSCREEN_JUSTIFICATION = 'Run ONNX Runtime Web inference for learning state detection';
+
+  /**
+   * Ensure the offscreen document exists. If it already exists, this is a no-op.
+   *
+   * @returns {Promise<void>}
+   */
+  async function ensureOffscreen() {
+    try {
+      const exists = await hasOffscreen();
+      if (exists) return;
+
+      await chrome.offscreen.createDocument({
+        url: OFFSCREEN_URL,
+        reasons: OFFSCREEN_REASONS,
+        justification: OFFSCREEN_JUSTIFICATION,
+      });
+    } catch (err) {
+      console.error('[Lumina SW] Failed to create offscreen document:', err);
+    }
+  }
+
+  /**
+   * Check if an offscreen document currently exists.
+   *
+   * @returns {Promise<boolean>}
+   */
+  async function hasOffscreen() {
+    try {
+      return chrome.offscreen.hasDocument();
+    } catch (err) {
+      console.error('[Lumina SW] Failed to check offscreen document:', err);
+      return false;
+    }
   }
 
   /**
@@ -159,18 +271,49 @@ var LuminaBackground = (function (exports) {
           // Store the latest packet, classify state, and increment count
           const session = await loadSession();
           session.packetCount = (session.packetCount || 0) + 1;
-          session.latestPacket = message.payload;
+          // Strip transient_content and PII before hitting storage constraints (UAC 1)
+          session.latestPacket = sanitizePacket(message.payload);
 
           // Run rule-based classification on the metrics
           if (message.payload && message.payload.metrics) {
             try {
               session.lastState = classifyState(message.payload.metrics);
-              console.debug('[Lumina SW] Classified state:', session.lastState);
+              const currentContent = message.payload.transient_content || null;
+              
+              const stateChanged = session.lastState !== session.lastPromptedState;
+              const contentChanged = currentContent !== session.lastPromptedContent;
+
+              if (stateChanged || contentChanged) {
+                // Ask Offscreen Document to run LLM logic
+                console.log(`[Lumina SW] 📤 Requesting Generative Nudge for state: ${session.lastState}`);
+                console.log(`[Lumina SW] 📎 Transient content extracted: "${currentContent || 'None'}"`);
+                await ensureOffscreen();
+                const generateResponse = await chrome.runtime.sendMessage({
+                  type: MessageType.GENERATE_NUDGE,
+                  payload: {
+                    state: session.lastState,
+                    platform: message.payload.context.type,
+                    transient_content: currentContent
+                  }
+                }).catch(() => null);
+
+                if (generateResponse && generateResponse.nudge) {
+                  session.lastNudge = generateResponse.nudge;
+                } else {
+                  session.lastNudge = null;
+                }
+
+                // Update cache to prevent redundant LLM calls
+                session.lastPromptedState = session.lastState;
+                session.lastPromptedContent = currentContent;
+              } else {
+                console.debug(`[Lumina SW] ♻️ Reusing cached nudge for state: ${session.lastState} (No change in state or content)`);
+              }
               
               // Broadcast the new state to any open side panels or popups
               chrome.runtime.sendMessage({
                 type: MessageType.STATE_UPDATED,
-                payload: session.lastState
+                payload: { state: session.lastState, nudge: session.lastNudge }
               }).catch(() => {
                 // Ignore errors (happens if no popup/panel is open to receive it)
               });

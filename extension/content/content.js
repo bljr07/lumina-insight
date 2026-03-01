@@ -30,6 +30,7 @@ var LuminaContent = (function (exports) {
     BEHAVIORAL_PACKET: 'BEHAVIORAL_PACKET',
     INFERENCE_REQUEST: 'INFERENCE_REQUEST',
     INFERENCE_RESULT: 'INFERENCE_RESULT',
+    GENERATE_NUDGE: 'GENERATE_NUDGE',
     GET_STATE: 'GET_STATE',
     STATE_UPDATED: 'STATE_UPDATED',
     HEARTBEAT: 'HEARTBEAT',
@@ -348,22 +349,24 @@ var LuminaContent = (function (exports) {
      */
     constructor(threshold = SensorConfig.RE_READ_CYCLE_THRESHOLD) {
       this._threshold = threshold;
-      this._elements = new Map(); // elementId → { seenCount, isVisible }
+      this._elements = new Map(); // elementId → { seenCount, isVisible, text }
     }
 
     /**
      * Mark an element as currently visible (entered viewport).
      * @param {string} elementId
+     * @param {string} [innerText]
      */
-    onElementSeen(elementId) {
+    onElementSeen(elementId, innerText = '') {
       if (!this._elements.has(elementId)) {
-        this._elements.set(elementId, { seenCount: 1, isVisible: true });
+        this._elements.set(elementId, { seenCount: 1, isVisible: true, text: innerText });
       } else {
         const state = this._elements.get(elementId);
         if (!state.isVisible) {
           state.seenCount++;
           state.isVisible = true;
         }
+        if (innerText) state.text = innerText;
       }
     }
 
@@ -389,6 +392,25 @@ var LuminaContent = (function (exports) {
         }
       }
       return total;
+    }
+
+    /**
+     * Returns the text of the element that has been re-read the most.
+     * @returns {string|null}
+     */
+    getTransientContent() {
+      let maxCycles = 0;
+      let selectedText = null;
+      for (const [, state] of this._elements) {
+        if (!state.text || state.text.trim().length === 0) continue; // Skip empty elements
+        const cycles = state.seenCount - 1;
+        // Use >= to grab the most recently updated element with the same max cycles
+        if (cycles >= maxCycles && cycles > 0) {
+          maxCycles = cycles;
+          selectedText = state.text;
+        }
+      }
+      return maxCycles > 0 ? selectedText : null;
     }
 
     /**
@@ -496,7 +518,8 @@ var LuminaContent = (function (exports) {
         if (!id) continue;
 
         if (entry.isIntersecting) {
-          detector.onElementSeen(id);
+          const text = (el.innerText || el.textContent || '').trim();
+          detector.onElementSeen(id, text);
         } else {
           detector.onElementLeft(id);
         }
@@ -539,11 +562,6 @@ var LuminaContent = (function (exports) {
    *
    * Privacy-first: sanitizePacket() strips any fields that could contain PII.
    */
-
-  // ─── Allowed Fields (Allowlist for PII protection) ─────────────────────────────
-
-  const ALLOWED_PACKET_FIELDS = ['context', 'metrics', 'inferred_state', 'timestamp'];
-  const ALLOWED_CONTEXT_FIELDS = ['domain', 'type'];
   const ALLOWED_METRICS_FIELDS = ['dwell_time_ms', 'scroll_velocity', 'mouse_jitter', 'tab_switches', 're_read_cycles'];
 
   // ─── Factory ───────────────────────────────────────────────────────────────────
@@ -553,10 +571,11 @@ var LuminaContent = (function (exports) {
    *
    * @param {{ domain: string, type: string }} context - Platform context
    * @param {{ dwell_time_ms: number, scroll_velocity: number, mouse_jitter: number, tab_switches: number, re_read_cycles: number }} metrics
+   * @param {string} [transient_content] - Ephemeral context extracted from DOM
    * @returns {object} A well-formed behavioral packet
    * @throws {Error} If context or metrics are invalid
    */
-  function createPacket(context, metrics) {
+  function createPacket(context, metrics, transient_content = null) {
     if (!context || typeof context !== 'object') {
       console.error('[Lumina] createPacket failed: context is required and must be an object', context);
       throw new Error('context is required and must be an object');
@@ -579,7 +598,7 @@ var LuminaContent = (function (exports) {
       throw new Error('metrics failed validation');
     }
 
-    return {
+    const packet = {
       context: {
         domain: context.domain,
         type: context.type,
@@ -594,6 +613,12 @@ var LuminaContent = (function (exports) {
       inferred_state: LearningState.PENDING_LOCAL_AI,
       timestamp: Date.now(),
     };
+
+    if (transient_content) {
+      packet.transient_content = transient_content;
+    }
+
+    return packet;
   }
 
   // ─── Validation ────────────────────────────────────────────────────────────────
@@ -639,50 +664,6 @@ var LuminaContent = (function (exports) {
     return true;
   }
 
-  // ─── Sanitization (Privacy) ────────────────────────────────────────────────────
-
-  /**
-   * Strips any fields not in the allowlist from a packet.
-   * Returns a NEW object — does not mutate the input.
-   *
-   * @param {object} packet - Raw packet that may contain extra fields
-   * @returns {object} A sanitized packet containing only allowed fields
-   */
-  function sanitizePacket(packet) {
-    const sanitized = {};
-
-    // Only copy allowed top-level fields
-    for (const field of ALLOWED_PACKET_FIELDS) {
-      if (field in packet) {
-        sanitized[field] = packet[field];
-      }
-    }
-
-    // Deep-sanitize context
-    if (sanitized.context && typeof sanitized.context === 'object') {
-      const cleanContext = {};
-      for (const field of ALLOWED_CONTEXT_FIELDS) {
-        if (field in sanitized.context) {
-          cleanContext[field] = sanitized.context[field];
-        }
-      }
-      sanitized.context = cleanContext;
-    }
-
-    // Deep-sanitize metrics
-    if (sanitized.metrics && typeof sanitized.metrics === 'object') {
-      const cleanMetrics = {};
-      for (const field of ALLOWED_METRICS_FIELDS) {
-        if (field in sanitized.metrics) {
-          cleanMetrics[field] = sanitized.metrics[field];
-        }
-      }
-      sanitized.metrics = cleanMetrics;
-    }
-
-    return sanitized;
-  }
-
   /**
    * Content Script Main — Wires sensors, platform detection, and packet emission
    *
@@ -713,12 +694,12 @@ var LuminaContent = (function (exports) {
         re_read_cycles: _sensors.reRead.getCycles(),
       };
 
-      const packet = createPacket(_platform, metrics);
-      const sanitized = sanitizePacket(packet);
+      const transient_content = _sensors.reRead.getTransientContent();
+      const packet = createPacket(_platform, metrics, transient_content);
 
       chrome.runtime.sendMessage({
         type: MessageType.BEHAVIORAL_PACKET,
-        payload: sanitized,
+        payload: packet,
       });
     } catch (err) {
       // Silently ignore — don't disrupt the user's page

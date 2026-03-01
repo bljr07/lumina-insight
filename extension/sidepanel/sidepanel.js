@@ -22,6 +22,7 @@ var LuminaSidePanel = (function (exports) {
     BEHAVIORAL_PACKET: 'BEHAVIORAL_PACKET',
     INFERENCE_REQUEST: 'INFERENCE_REQUEST',
     INFERENCE_RESULT: 'INFERENCE_RESULT',
+    GENERATE_NUDGE: 'GENERATE_NUDGE',
     GET_STATE: 'GET_STATE',
     STATE_UPDATED: 'STATE_UPDATED',
     HEARTBEAT: 'HEARTBEAT',
@@ -131,9 +132,10 @@ var LuminaSidePanel = (function (exports) {
    * updating text content and body theme classes.
    *
    * @param {string|null} state 
+   * @param {object|null} [dynamicNudge] 
    */
-  function renderNudge(state) {
-    const nudge = mapStateToNudge(state);
+  function renderNudge(state, dynamicNudge = null) {
+    const nudge = dynamicNudge || mapStateToNudge(state);
 
     // Update DOM Elements
     const titleEl = document.getElementById('nudge-title');
@@ -159,8 +161,9 @@ var LuminaSidePanel = (function (exports) {
     try {
       const response = await chrome.runtime.sendMessage({ type: MessageType.GET_STATE });
       const lastState = response ? response.lastState : null;
-      console.debug('[Lumina SP] Received state on init:', lastState);
-      renderNudge(lastState);
+      const lastNudge = response ? response.lastNudge : null;
+      console.debug('[Lumina SP] Received state on init:', lastState, lastNudge);
+      renderNudge(lastState, lastNudge);
     } catch (err) {
       console.error('[Lumina SP] Failed to init, fallback to Idle. Err:', err);
       renderNudge(null); // Fallback securely
@@ -175,7 +178,13 @@ var LuminaSidePanel = (function (exports) {
   chrome.runtime.onMessage.addListener((message) => {
     if (message.type === MessageType.STATE_UPDATED) {
       console.debug('[Lumina SP] Received live state update:', message.payload);
-      renderNudge(message.payload);
+      
+      // Backwards compatibility for testing / old payloads
+      if (typeof message.payload === 'object' && message.payload !== null && message.payload.state) {
+        renderNudge(message.payload.state, message.payload.nudge);
+      } else {
+        renderNudge(message.payload);
+      }
     }
   });
 

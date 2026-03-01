@@ -30,7 +30,8 @@ export function initReReadObserver(detector, elements) {
       if (!id) continue;
 
       if (entry.isIntersecting) {
-        detector.onElementSeen(id);
+        const text = (el.innerText || el.textContent || '').trim();
+        detector.onElementSeen(id, text);
       } else {
         detector.onElementLeft(id);
       }

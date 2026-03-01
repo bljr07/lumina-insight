@@ -64,9 +64,10 @@ describe('ReRead Observer Integration', () => {
     expect(el2.dataset.luminaId).toBeDefined(); // should auto-generate an ID
   });
 
-  it('should call onElementSeen when an element intersects', () => {
+  it('should call onElementSeen with ID and innerText when an element intersects', () => {
     const el = document.createElement('div');
     el.id = 'test-node';
+    el.innerText = 'This is some text that should be extracted.';
     
     initReReadObserver(detector, [el]);
 
@@ -78,7 +79,7 @@ describe('ReRead Observer Integration', () => {
     
     callbackRef(entries);
 
-    expect(detector.onElementSeen).toHaveBeenCalledWith('test-node');
+    expect(detector.onElementSeen).toHaveBeenCalledWith('test-node', 'This is some text that should be extracted.');
     expect(detector.onElementLeft).not.toHaveBeenCalled();
   });
 
@@ -108,7 +109,7 @@ describe('ReRead Observer Integration', () => {
 
     callbackRef([{ target: el, isIntersecting: true }]);
 
-    expect(detector.onElementSeen).toHaveBeenCalledWith(generatedId);
+    expect(detector.onElementSeen).toHaveBeenCalledWith(generatedId, '');
   });
 
   it('should disconnect the observer correctly', () => {

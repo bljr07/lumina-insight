@@ -87,7 +87,7 @@ describe('mapStateToNudge()', () => {
 
     expect(nudge).toEqual(
       expect.objectContaining({
-        type: 'HINT',
+        type: 'struggling',
         priority: 'HIGH',
       })
     );
@@ -98,7 +98,7 @@ describe('mapStateToNudge()', () => {
 
     expect(nudge).toEqual(
       expect.objectContaining({
-        type: 'SUMMARY',
+        type: 're-reading',
         priority: 'MEDIUM',
       })
     );
@@ -109,7 +109,7 @@ describe('mapStateToNudge()', () => {
 
     expect(nudge).toEqual(
       expect.objectContaining({
-        type: 'LOGIC_BRIDGE',
+        type: 'struggling',
         priority: 'HIGH',
       })
     );
@@ -132,7 +132,7 @@ describe('mapStateToNudge()', () => {
 
     expect(nudge).toEqual(
       expect.objectContaining({
-        type: 'BREAK',
+        type: 'stalled',
         priority: 'LOW',
       })
     );

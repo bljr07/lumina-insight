@@ -10,45 +10,6 @@
     It communicates with the Service Worker via chrome.runtime messaging.
     No UI is rendered — this document exists solely for WebGPU/Wasm access.
   -->
-  <script type="module">
-    // TODO: Import ONNX Runtime Web when peers provide the model
-    // import * as ort from 'onnxruntime-web';
-
-    import { createInferenceSession, runInference } from './inference.js';
-
-    let session = null;
-
-    // Initialize the inference session on load
-    async function init() {
-      try {
-        session = await createInferenceSession();
-        console.log('[Offscreen] Inference session ready, provider:', session.provider);
-      } catch (err) {
-        console.error('[Offscreen] Failed to create inference session:', err);
-      }
-    }
-
-    // Listen for inference requests from the Service Worker
-    chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-      if (message.type === 'INFERENCE_REQUEST') {
-        if (!session) {
-          sendResponse({ error: 'Session not initialized' });
-          return true;
-        }
-
-        runInference(session, message.payload)
-          .then((state) => {
-            sendResponse({ state });
-          })
-          .catch((err) => {
-            sendResponse({ error: err.message });
-          });
-
-        return true; // keep channel open for async response
-      }
-    });
-
-    init();
-  </script>
+  <script type="module" src="main.js"></script>
 </body>
 </html>

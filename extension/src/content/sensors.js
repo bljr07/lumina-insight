@@ -191,22 +191,24 @@ export class ReReadDetector {
    */
   constructor(threshold = SensorConfig.RE_READ_CYCLE_THRESHOLD) {
     this._threshold = threshold;
-    this._elements = new Map(); // elementId → { seenCount, isVisible }
+    this._elements = new Map(); // elementId → { seenCount, isVisible, text }
   }
 
   /**
    * Mark an element as currently visible (entered viewport).
    * @param {string} elementId
+   * @param {string} [innerText]
    */
-  onElementSeen(elementId) {
+  onElementSeen(elementId, innerText = '') {
     if (!this._elements.has(elementId)) {
-      this._elements.set(elementId, { seenCount: 1, isVisible: true });
+      this._elements.set(elementId, { seenCount: 1, isVisible: true, text: innerText });
     } else {
       const state = this._elements.get(elementId);
       if (!state.isVisible) {
         state.seenCount++;
         state.isVisible = true;
       }
+      if (innerText) state.text = innerText;
     }
   }
 
@@ -232,6 +234,25 @@ export class ReReadDetector {
       }
     }
     return total;
+  }
+
+  /**
+   * Returns the text of the element that has been re-read the most.
+   * @returns {string|null}
+   */
+  getTransientContent() {
+    let maxCycles = 0;
+    let selectedText = null;
+    for (const [, state] of this._elements) {
+      if (!state.text || state.text.trim().length === 0) continue; // Skip empty elements
+      const cycles = state.seenCount - 1;
+      // Use >= to grab the most recently updated element with the same max cycles
+      if (cycles >= maxCycles && cycles > 0) {
+        maxCycles = cycles;
+        selectedText = state.text;
+      }
+    }
+    return maxCycles > 0 ? selectedText : null;
   }
 
   /**

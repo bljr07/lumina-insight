@@ -7,6 +7,8 @@
 import { MessageType } from '@shared/constants.js';
 import { saveSession, loadSession } from './storage.js';
 import { classifyState } from '@offscreen/state-classifier.js';
+import { sanitizePacket } from '@shared/packet.js';
+import { ensureOffscreen } from './offscreen-manager.js';
 
 /**
  * Handle an incoming runtime message.
@@ -22,18 +24,49 @@ export async function handleMessage(message, sender, sendResponse) {
         // Store the latest packet, classify state, and increment count
         const session = await loadSession();
         session.packetCount = (session.packetCount || 0) + 1;
-        session.latestPacket = message.payload;
+        // Strip transient_content and PII before hitting storage constraints (UAC 1)
+        session.latestPacket = sanitizePacket(message.payload);
 
         // Run rule-based classification on the metrics
         if (message.payload && message.payload.metrics) {
           try {
             session.lastState = classifyState(message.payload.metrics);
-            console.debug('[Lumina SW] Classified state:', session.lastState);
+            const currentContent = message.payload.transient_content || null;
+            
+            const stateChanged = session.lastState !== session.lastPromptedState;
+            const contentChanged = currentContent !== session.lastPromptedContent;
+
+            if (stateChanged || contentChanged) {
+              // Ask Offscreen Document to run LLM logic
+              console.log(`[Lumina SW] 📤 Requesting Generative Nudge for state: ${session.lastState}`);
+              console.log(`[Lumina SW] 📎 Transient content extracted: "${currentContent || 'None'}"`);
+              await ensureOffscreen();
+              const generateResponse = await chrome.runtime.sendMessage({
+                type: MessageType.GENERATE_NUDGE,
+                payload: {
+                  state: session.lastState,
+                  platform: message.payload.context.type,
+                  transient_content: currentContent
+                }
+              }).catch(() => null);
+
+              if (generateResponse && generateResponse.nudge) {
+                session.lastNudge = generateResponse.nudge;
+              } else {
+                session.lastNudge = null;
+              }
+
+              // Update cache to prevent redundant LLM calls
+              session.lastPromptedState = session.lastState;
+              session.lastPromptedContent = currentContent;
+            } else {
+              console.debug(`[Lumina SW] ♻️ Reusing cached nudge for state: ${session.lastState} (No change in state or content)`);
+            }
             
             // Broadcast the new state to any open side panels or popups
             chrome.runtime.sendMessage({
               type: MessageType.STATE_UPDATED,
-              payload: session.lastState
+              payload: { state: session.lastState, nudge: session.lastNudge }
             }).catch(() => {
               // Ignore errors (happens if no popup/panel is open to receive it)
             });

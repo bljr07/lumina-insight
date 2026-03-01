@@ -21,10 +21,11 @@ const ALLOWED_METRICS_FIELDS = ['dwell_time_ms', 'scroll_velocity', 'mouse_jitte
  *
  * @param {{ domain: string, type: string }} context - Platform context
  * @param {{ dwell_time_ms: number, scroll_velocity: number, mouse_jitter: number, tab_switches: number, re_read_cycles: number }} metrics
+ * @param {string} [transient_content] - Ephemeral context extracted from DOM
  * @returns {object} A well-formed behavioral packet
  * @throws {Error} If context or metrics are invalid
  */
-export function createPacket(context, metrics) {
+export function createPacket(context, metrics, transient_content = null) {
   if (!context || typeof context !== 'object') {
     console.error('[Lumina] createPacket failed: context is required and must be an object', context);
     throw new Error('context is required and must be an object');
@@ -47,7 +48,7 @@ export function createPacket(context, metrics) {
     throw new Error('metrics failed validation');
   }
 
-  return {
+  const packet = {
     context: {
       domain: context.domain,
       type: context.type,
@@ -62,6 +63,12 @@ export function createPacket(context, metrics) {
     inferred_state: LearningState.PENDING_LOCAL_AI,
     timestamp: Date.now(),
   };
+
+  if (transient_content) {
+    packet.transient_content = transient_content;
+  }
+
+  return packet;
 }
 
 // ─── Validation ────────────────────────────────────────────────────────────────

@@ -11,7 +11,7 @@
  *   3. runInference(session, metrics) → LearningState
  */
 import { classifyState } from './state-classifier.js';
-import { validateMetrics } from '@shared/packet.js';
+import { validateMetrics } from '../shared/packet.js';
 
 // ─── Execution Provider Detection (UAC 4: Graceful Degradation) ────────────────
 

@@ -23,7 +23,7 @@ describe('createPacket()', () => {
       re_read_cycles: 0,
     };
 
-    const packet = createPacket(context, metrics);
+    const packet = createPacket(context, metrics, 'Optional text content');
 
     expect(packet).toEqual({
       context: { domain: 'kahoot.it', type: 'QUIZ' },
@@ -32,10 +32,11 @@ describe('createPacket()', () => {
         scroll_velocity: 0,
         mouse_jitter: 0.45,
         tab_switches: 0,
-      re_read_cycles: 0,
+        re_read_cycles: 0,
       },
       inferred_state: LearningState.PENDING_LOCAL_AI,
       timestamp: expect.any(Number),
+      transient_content: 'Optional text content',
     });
   });
 
@@ -262,6 +263,7 @@ describe('sanitizePacket()', () => {
     expect(sanitized).toHaveProperty('inferred_state');
     expect(sanitized).toHaveProperty('timestamp');
     expect(Object.keys(sanitized)).toHaveLength(4);
+    expect(sanitized).not.toHaveProperty('transient_content');
   });
 
   it('should strip unexpected fields from context', () => {
@@ -301,11 +303,13 @@ describe('sanitizePacket()', () => {
       },
       inferred_state: LearningState.PENDING_LOCAL_AI,
       timestamp: Date.now(),
+      transient_content: 'Some raw dom text that should be kept private',
     };
 
     const sanitized = sanitizePacket(packet);
 
     expect(sanitized.metrics).not.toHaveProperty('keystrokes');
+    expect(sanitized).not.toHaveProperty('transient_content');
     expect(Object.keys(sanitized.metrics)).toHaveLength(5);
   });
 
