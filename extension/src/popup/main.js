@@ -79,6 +79,19 @@ export async function initPopup() {
   }
 }
 
+// ─── Message Listener ──────────────────────────────────────────────────────────
+
+/**
+ * Listen for real-time state updates broadcasted by the Service Worker.
+ */
+chrome.runtime.onMessage.addListener((message) => {
+  if (message.type === MessageType.STATE_UPDATED) {
+    console.debug('[Lumina Popup] Received live state update:', message.payload);
+    // Re-fetch full session to get packet count & context
+    initPopup(); 
+  }
+});
+
 // ─── Auto-initialize ───────────────────────────────────────────────────────────
 const isTestEnv = typeof process !== 'undefined' && process.env && process.env.NODE_ENV === 'test';
 if (!isTestEnv && typeof document !== 'undefined') {

@@ -18,10 +18,14 @@
       "css": ["content/content.css"]
     }
   ],
+  "side_panel": {
+    "default_path": "sidepanel/sidepanel.html"
+  },
   "permissions": [
     "storage",
     "activeTab",
     "offscreen",
-    "idle"
+    "idle",
+    "sidePanel"
   ]
 }

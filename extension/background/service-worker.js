@@ -23,6 +23,7 @@ var LuminaBackground = (function (exports) {
     INFERENCE_REQUEST: 'INFERENCE_REQUEST',
     INFERENCE_RESULT: 'INFERENCE_RESULT',
     GET_STATE: 'GET_STATE',
+    STATE_UPDATED: 'STATE_UPDATED',
     HEARTBEAT: 'HEARTBEAT',
   });
 
@@ -165,6 +166,15 @@ var LuminaBackground = (function (exports) {
             try {
               session.lastState = classifyState(message.payload.metrics);
               console.debug('[Lumina SW] Classified state:', session.lastState);
+              
+              // Broadcast the new state to any open side panels or popups
+              chrome.runtime.sendMessage({
+                type: MessageType.STATE_UPDATED,
+                payload: session.lastState
+              }).catch(() => {
+                // Ignore errors (happens if no popup/panel is open to receive it)
+              });
+              
             } catch (err) {
               console.error('[Lumina SW] Classification failed:', err);
             }

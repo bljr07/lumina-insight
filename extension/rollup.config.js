@@ -13,6 +13,7 @@ const aliasPlugin = alias({
     { find: '@background', replacement: path.resolve(__dirname, 'src/background') },
     { find: '@offscreen', replacement: path.resolve(__dirname, 'src/offscreen') },
     { find: '@popup', replacement: path.resolve(__dirname, 'src/popup') },
+    { find: '@sidepanel', replacement: path.resolve(__dirname, 'src/sidepanel') },
   ],
 });
 
@@ -46,6 +47,16 @@ export default [
       file: 'popup/popup.js',
       format: 'iife',
       name: 'LuminaPopup',
+    },
+    plugins,
+  },
+  // Side Panel bundle
+  {
+    input: 'src/sidepanel/main.js',
+    output: {
+      file: 'sidepanel/sidepanel.js',
+      format: 'iife',
+      name: 'LuminaSidePanel',
     },
     plugins,
   },
