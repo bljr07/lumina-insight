@@ -465,6 +465,73 @@ var LuminaContent = (function (exports) {
   }
 
   /**
+   * IntersectionObserver Logic — Wires the ReReadDetector to the live DOM
+   *
+   * This module is responsible for setting up an IntersectionObserver that
+   * watches specific DOM elements (like paragraphs or quiz cards) and reports
+   * when they enter or leave the viewport to the ReReadDetector instance.
+   */
+
+  let _observer = null;
+
+  /**
+   * Initializes the IntersectionObserver and begins watching the provided elements.
+   * 
+   * @param {import('./sensors.js').ReReadDetector} detector 
+   * @param {Element[]|NodeList} elements 
+   */
+  function initReReadObserver(detector, elements) {
+    if (_observer) {
+      _observer.disconnect();
+    }
+
+    if (!elements || elements.length === 0) return;
+
+    // The callback fired when any observed element enters/exits the viewport
+    const handleIntersection = (entries) => {
+      for (const entry of entries) {
+        const el = entry.target;
+        const id = el.id || el.dataset.luminaId;
+
+        if (!id) continue;
+
+        if (entry.isIntersecting) {
+          detector.onElementSeen(id);
+        } else {
+          detector.onElementLeft(id);
+        }
+      }
+    };
+
+    // Configure observer with slightly padded margins so we count elements
+    // slightly before they fully hit the screen edge.
+    _observer = new IntersectionObserver(handleIntersection, {
+      root: null, // viewport
+      rootMargin: '50px',
+      threshold: 0.1, // Trigger when 10% visible
+    });
+
+    // Attach auto-generated IDs and start observing
+    let counter = 0;
+    for (const el of elements) {
+      if (!el.id && !el.dataset.luminaId) {
+        el.dataset.luminaId = `lumina-node-${counter++}`;
+      }
+      _observer.observe(el);
+    }
+  }
+
+  /**
+   * Disconnects the active IntersectionObserver and cleans up.
+   */
+  function disconnectObserver() {
+    if (_observer) {
+      _observer.disconnect();
+      _observer = null;
+    }
+  }
+
+  /**
    * Packet — Behavioral Data Schema & Validation
    *
    * Defines the structured JSON "packet" that Content Scripts emit to the
@@ -477,7 +544,7 @@ var LuminaContent = (function (exports) {
 
   const ALLOWED_PACKET_FIELDS = ['context', 'metrics', 'inferred_state', 'timestamp'];
   const ALLOWED_CONTEXT_FIELDS = ['domain', 'type'];
-  const ALLOWED_METRICS_FIELDS = ['dwell_time_ms', 'scroll_velocity', 'mouse_jitter', 'tab_switches'];
+  const ALLOWED_METRICS_FIELDS = ['dwell_time_ms', 'scroll_velocity', 'mouse_jitter', 'tab_switches', 're_read_cycles'];
 
   // ─── Factory ───────────────────────────────────────────────────────────────────
 
@@ -485,7 +552,7 @@ var LuminaContent = (function (exports) {
    * Creates a validated behavioral packet.
    *
    * @param {{ domain: string, type: string }} context - Platform context
-   * @param {{ dwell_time_ms: number, scroll_velocity: number, mouse_jitter: number, tab_switches: number }} metrics
+   * @param {{ dwell_time_ms: number, scroll_velocity: number, mouse_jitter: number, tab_switches: number, re_read_cycles: number }} metrics
    * @returns {object} A well-formed behavioral packet
    * @throws {Error} If context or metrics are invalid
    */
@@ -522,6 +589,7 @@ var LuminaContent = (function (exports) {
         scroll_velocity: metrics.scroll_velocity,
         mouse_jitter: metrics.mouse_jitter,
         tab_switches: metrics.tab_switches,
+        re_read_cycles: metrics.re_read_cycles,
       },
       inferred_state: LearningState.PENDING_LOCAL_AI,
       timestamp: Date.now(),
@@ -560,6 +628,11 @@ var LuminaContent = (function (exports) {
 
     // tab_switches: non-negative integer
     if (metrics.tab_switches < 0 || !Number.isInteger(metrics.tab_switches)) {
+      return false;
+    }
+
+    // re_read_cycles: non-negative integer
+    if (metrics.re_read_cycles < 0 || !Number.isInteger(metrics.re_read_cycles)) {
       return false;
     }
 
@@ -637,6 +710,7 @@ var LuminaContent = (function (exports) {
         scroll_velocity: _sensors.scroll.getVelocity(),
         mouse_jitter: _sensors.jitter.getJitter(),
         tab_switches: _sensors.tabSwitch.getCount(),
+        re_read_cycles: _sensors.reRead.getCycles(),
       };
 
       const packet = createPacket(_platform, metrics);
@@ -704,8 +778,18 @@ var LuminaContent = (function (exports) {
 
     // Detect quiz elements on the page
     const quizElements = detectQuizElements(document, _platform.domain);
+    
+    let targetElements = [];
     if (quizElements.length > 0) {
-      console.debug(`[Lumina] Detected ${quizElements.length} interactive elements on ${_platform.domain}`);
+      targetElements = quizElements;
+    } else {
+      // Fallback: track standard reading paragraphs
+      targetElements = Array.from(document.querySelectorAll('p, article, li'));
+    }
+
+    if (targetElements.length > 0) {
+      initReReadObserver(_sensors.reRead, targetElements);
+      console.debug(`[Lumina] Observing ${targetElements.length} elements for re-read tracking on ${_platform.domain}`);
     }
 
     console.debug(`[Lumina] Content script initialized — platform: ${_platform.domain} (${_platform.type})`);
@@ -728,6 +812,8 @@ var LuminaContent = (function (exports) {
       _sensors.dwell.stop();
       _sensors = null;
     }
+
+    disconnectObserver();
 
     _platform = null;
     _emitThrottled = null;

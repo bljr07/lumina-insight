@@ -12,11 +12,18 @@ describe('initContentScript()', () => {
   beforeEach(() => {
     vi.useFakeTimers();
     document.body.innerHTML = '';
+    
+    // Mock IntersectionObserver for jsdom
+    global.IntersectionObserver = vi.fn().mockImplementation(() => ({
+      observe: vi.fn(),
+      disconnect: vi.fn(),
+    }));
   });
 
   afterEach(() => {
     stopContentScript();
     vi.useRealTimers();
+    delete global.IntersectionObserver;
   });
 
   it('should detect platform from current URL', () => {

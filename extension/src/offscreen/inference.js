@@ -67,7 +67,7 @@ export async function createInferenceSession() {
  */
 export async function runInference(session, metrics) {
   if (!metrics || typeof metrics !== 'object' || !validateMetrics(metrics)) {
-    const err = new Error('Invalid metrics: must contain dwell_time_ms, scroll_velocity, mouse_jitter, tab_switches');
+    const err = new Error('Invalid metrics: must contain dwell_time_ms, scroll_velocity, mouse_jitter, tab_switches, re_read_cycles');
     console.error('[Lumina Offscreen] Inference failed — invalid metrics:', metrics, err);
     throw err;
   }

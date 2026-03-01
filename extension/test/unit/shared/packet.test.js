@@ -20,6 +20,7 @@ describe('createPacket()', () => {
       scroll_velocity: 0,
       mouse_jitter: 0.45,
       tab_switches: 0,
+      re_read_cycles: 0,
     };
 
     const packet = createPacket(context, metrics);
@@ -31,6 +32,7 @@ describe('createPacket()', () => {
         scroll_velocity: 0,
         mouse_jitter: 0.45,
         tab_switches: 0,
+      re_read_cycles: 0,
       },
       inferred_state: LearningState.PENDING_LOCAL_AI,
       timestamp: expect.any(Number),
@@ -44,6 +46,7 @@ describe('createPacket()', () => {
       scroll_velocity: 0,
       mouse_jitter: 0,
       tab_switches: 0,
+      re_read_cycles: 0,
     };
 
     expect(() => createPacket(context, metrics)).toThrow('domain');
@@ -56,6 +59,7 @@ describe('createPacket()', () => {
       scroll_velocity: 0,
       mouse_jitter: 0,
       tab_switches: 0,
+      re_read_cycles: 0,
     };
 
     expect(() => createPacket(context, metrics)).toThrow('type');
@@ -68,6 +72,7 @@ describe('createPacket()', () => {
       scroll_velocity: 0,
       mouse_jitter: 0,
       tab_switches: 0,
+      re_read_cycles: 0,
     };
 
     const packet = createPacket(context, metrics);
@@ -82,6 +87,7 @@ describe('createPacket()', () => {
       scroll_velocity: 0,
       mouse_jitter: 0,
       tab_switches: 0,
+      re_read_cycles: 0,
     };
 
     const before = Date.now();
@@ -109,6 +115,7 @@ describe('validateMetrics()', () => {
       scroll_velocity: 120.5,
       mouse_jitter: 0.45,
       tab_switches: 2,
+      re_read_cycles: 0,
     };
 
     expect(validateMetrics(metrics)).toBe(true);
@@ -120,6 +127,7 @@ describe('validateMetrics()', () => {
       scroll_velocity: 0,
       mouse_jitter: 0,
       tab_switches: 0,
+      re_read_cycles: 0,
     };
 
     expect(validateMetrics(metrics)).toBe(false);
@@ -131,6 +139,7 @@ describe('validateMetrics()', () => {
       scroll_velocity: 0,
       mouse_jitter: 1.5, // normalized 0-1, this is out of bounds
       tab_switches: 0,
+      re_read_cycles: 0,
     };
 
     expect(validateMetrics(metrics)).toBe(false);
@@ -142,6 +151,7 @@ describe('validateMetrics()', () => {
       scroll_velocity: 0,
       mouse_jitter: -0.1,
       tab_switches: 0,
+      re_read_cycles: 0,
     };
 
     expect(validateMetrics(metrics)).toBe(false);
@@ -153,6 +163,7 @@ describe('validateMetrics()', () => {
       scroll_velocity: 0,
       mouse_jitter: 0,
       tab_switches: -1,
+      re_read_cycles: 0,
     };
 
     expect(validateMetrics(metrics)).toBe(false);
@@ -164,6 +175,7 @@ describe('validateMetrics()', () => {
       scroll_velocity: 0,
       mouse_jitter: 0,
       tab_switches: 1.5,
+      re_read_cycles: 0,
     };
 
     expect(validateMetrics(metrics)).toBe(false);
@@ -180,6 +192,7 @@ describe('validateMetrics()', () => {
       scroll_velocity: 0,
       mouse_jitter: 0,
       tab_switches: 0,
+      re_read_cycles: 0,
     };
 
     expect(validateMetrics(metrics)).toBe(true);
@@ -191,6 +204,7 @@ describe('validateMetrics()', () => {
       scroll_velocity: 0,
       mouse_jitter: 1.0,
       tab_switches: 0,
+      re_read_cycles: 0,
     };
 
     expect(validateMetrics(metrics)).toBe(true);
@@ -208,6 +222,7 @@ describe('sanitizePacket()', () => {
         scroll_velocity: 0,
         mouse_jitter: 0.3,
         tab_switches: 0,
+      re_read_cycles: 0,
       },
       inferred_state: LearningState.PENDING_LOCAL_AI,
       timestamp: Date.now(),
@@ -234,6 +249,7 @@ describe('sanitizePacket()', () => {
         scroll_velocity: 0,
         mouse_jitter: 0.3,
         tab_switches: 0,
+      re_read_cycles: 0,
       },
       inferred_state: LearningState.PENDING_LOCAL_AI,
       timestamp: Date.now(),
@@ -260,6 +276,7 @@ describe('sanitizePacket()', () => {
         scroll_velocity: 0,
         mouse_jitter: 0.3,
         tab_switches: 0,
+      re_read_cycles: 0,
       },
       inferred_state: LearningState.PENDING_LOCAL_AI,
       timestamp: Date.now(),
@@ -279,6 +296,7 @@ describe('sanitizePacket()', () => {
         scroll_velocity: 0,
         mouse_jitter: 0.3,
         tab_switches: 0,
+      re_read_cycles: 0,
         keystrokes: 42, // Not part of schema — potential PII signal
       },
       inferred_state: LearningState.PENDING_LOCAL_AI,
@@ -288,7 +306,7 @@ describe('sanitizePacket()', () => {
     const sanitized = sanitizePacket(packet);
 
     expect(sanitized.metrics).not.toHaveProperty('keystrokes');
-    expect(Object.keys(sanitized.metrics)).toHaveLength(4);
+    expect(Object.keys(sanitized.metrics)).toHaveLength(5);
   });
 
   it('should return a new object (not mutate the input)', () => {
@@ -299,6 +317,7 @@ describe('sanitizePacket()', () => {
         scroll_velocity: 0,
         mouse_jitter: 0.3,
         tab_switches: 0,
+      re_read_cycles: 0,
       },
       inferred_state: LearningState.PENDING_LOCAL_AI,
       timestamp: Date.now(),
