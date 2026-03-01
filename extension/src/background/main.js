@@ -7,7 +7,9 @@
  * 3. Manages the offscreen document lifecycle for AI inference
  */
 import { initRouter } from './router.js';
-import { saveSession, DEFAULT_SESSION } from './storage.js';
+import { saveSession, loadSession, DEFAULT_SESSION } from './storage.js';
+import { startFederatedSyncLoop } from './federated.js';
+const isTestEnv = typeof process !== 'undefined' && process.env && process.env.NODE_ENV === 'test';
 
 // ---- Inject Node.js require polyfill for onnxruntime-web fallback ----
 if (typeof globalThis.require === 'undefined') {
@@ -22,6 +24,9 @@ if (typeof globalThis.require === 'undefined') {
 export function initServiceWorker() {
   // Register the message router
   initRouter();
+  if (!isTestEnv) {
+    startFederatedSyncLoop(loadSession);
+  }
 
   // Handle extension lifecycle events
   chrome.runtime.onInstalled.addListener(async (details) => {
@@ -38,7 +43,6 @@ export function initServiceWorker() {
 }
 
 // ─── Auto-initialize (only in real Chrome, not during tests) ───────────────────
-const isTestEnv = typeof process !== 'undefined' && process.env && process.env.NODE_ENV === 'test';
 if (!isTestEnv && typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.onInstalled) {
   initServiceWorker();
 }

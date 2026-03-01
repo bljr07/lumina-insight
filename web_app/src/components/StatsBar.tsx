@@ -10,7 +10,7 @@ const iconMap: Record<string, any> = {
   Clock,
 };
 
-const cardVariants = {
+const cardVariants: any = {
   hidden: { opacity: 0, y: 20, scale: 0.95 },
   visible: (i: number) => ({
     opacity: 1,

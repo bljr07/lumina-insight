@@ -93,4 +93,5 @@ describe('initServiceWorker()', () => {
 
     expect(chrome.storage.local.set).toHaveBeenCalled();
   });
+
 });

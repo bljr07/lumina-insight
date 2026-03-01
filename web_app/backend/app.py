@@ -51,6 +51,27 @@ def ingest_data():
 # ─── Federated Learning Sync Loop ────────────────────────────────────────────────
 
 FEDERATED_AGGREGATION_THRESHOLD = 3
+FEDERATED_WEIGHT_DIMENSION = 10
+
+
+def _is_valid_weight_array(weights):
+    return (
+        isinstance(weights, list)
+        and len(weights) > 0
+        and all(isinstance(v, (int, float)) for v in weights)
+    )
+
+
+def _get_expected_weight_length():
+    latest_model = GlobalModel.query.order_by(GlobalModel.version.desc()).first()
+    if latest_model:
+        try:
+            parsed = json.loads(latest_model.weights)
+            if _is_valid_weight_array(parsed):
+                return len(parsed)
+        except Exception:
+            app.logger.warning("Latest global model weights are invalid JSON")
+    return FEDERATED_WEIGHT_DIMENSION
 
 @app.route('/api/federated/push', methods=['POST'])
 def federated_push():
@@ -62,6 +83,21 @@ def federated_push():
         data = request.json
         if not data or 'client_id' not in data or 'weights' not in data:
             return jsonify({'error': 'Missing client_id or weights'}), 400
+        if not isinstance(data['client_id'], str) or not data['client_id'].strip():
+            return jsonify({'error': 'client_id must be a non-empty string'}), 400
+        if not _is_valid_weight_array(data['weights']):
+            return jsonify({'error': 'weights must be a non-empty numeric array'}), 400
+
+        expected_length = _get_expected_weight_length()
+        incoming_length = len(data['weights'])
+        if expected_length is not None and incoming_length != expected_length:
+            app.logger.warning(
+                "Rejected client %s weights with length %s (expected %s)",
+                data['client_id'],
+                incoming_length,
+                expected_length,
+            )
+            return jsonify({'error': f'weights length mismatch: expected {expected_length}, got {incoming_length}'}), 400
 
         # Save to DB
         fw = FederatedWeight(
@@ -89,7 +125,7 @@ def federated_pull():
         if not latest_model:
             # If no model exists, return a dummy representation for the MVP clients
             # (In reality, this would be an ONNX byte array or initial floats)
-            dummy_weights = [0.0] * 10
+            dummy_weights = [0.0] * FEDERATED_WEIGHT_DIMENSION
             return jsonify({
                 'version': 0,
                 'weights': dummy_weights,
@@ -115,15 +151,19 @@ def _aggregate_federated_weights():
         arrays = [json.loads(record.weights) for record in unprocessed_records]
         if not arrays:
             return
+        if not all(_is_valid_weight_array(arr) for arr in arrays):
+            raise ValueError('All unprocessed weight payloads must be non-empty numeric arrays')
             
         weight_length = len(arrays[0])
+        if any(len(arr) != weight_length for arr in arrays):
+            raise ValueError('Mismatched weight vector lengths detected in unprocessed payloads')
+
         num_clients = len(arrays)
 
         # Basic Federated Averaging (Mean)
         aggregated = [0.0] * weight_length
         for arr in arrays:
-            # Ensure safe length to prevent index errors
-            for i in range(min(weight_length, len(arr))):
+            for i in range(weight_length):
                 aggregated[i] += arr[i]
 
         aggregated = [val / num_clients for val in aggregated]

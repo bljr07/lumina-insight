@@ -20,7 +20,7 @@ The extension is broken into three main Chrome entry points, all built from the 
 
 3. **Popup / Offscreen (`src/popup/`, `src/offscreen/`)**
    - **Popup**: Connects to the Service Worker to request current state and renders it.
-   - **Offscreen**: (WIP) Will host the ONNX Runtime Web instance to execute the AI model securely off the main thread.
+   - **Offscreen**: Hosts ONNX Runtime Web session initialization and message-based inference/nudge generation, with rule-based fallback when ONNX is unavailable.
 
 ## 🛠️ Development Setup
 

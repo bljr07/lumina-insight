@@ -33,7 +33,7 @@ const nodeDetails: Record<number, NodeDetail> = {
   9: { subtopics: ["Redis", "Memcached", "Cache Invalidation", "CDN"], resources: [{ title: "Caching Strategies", type: "Article" }, { title: "Redis Deep Dive", type: "Course" }], timeSpent: "5.5h", lastStudied: "3 days ago" },
 };
 
-const nodeVariants = {
+const nodeVariants: any = {
   hidden: { scale: 0, opacity: 0 },
   visible: (i: number) => ({
     scale: 1,
@@ -42,7 +42,7 @@ const nodeVariants = {
   }),
 };
 
-const edgeVariants = {
+const edgeVariants: any = {
   hidden: { pathLength: 0, opacity: 0 },
   visible: (i: number) => ({
     pathLength: 1,
@@ -51,7 +51,7 @@ const edgeVariants = {
   }),
 };
 
-const glowVariants = {
+const glowVariants: any = {
   idle: (mastery: number) => ({
     scale: [1, 1.3, 1],
     opacity: [mastery * 0.2, mastery * 0.35, mastery * 0.2],

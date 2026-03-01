@@ -78,3 +78,7 @@ lerna-debug.log*
 # Development
 .cache/
 *.local
+
+# Keep web app source lib utilities and data files tracked
+!web_app/src/lib/
+!web_app/src/lib/*.ts
