@@ -19,7 +19,7 @@
     }
   ],
   "side_panel": {
-    "default_path": "sidepanel/sidepanel.html"
+    "default_path": "sidepanel/index.html"
   },
   "permissions": [
     "storage",
