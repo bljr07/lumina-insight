@@ -17,7 +17,7 @@ const aliasPlugin = alias({
   ],
 });
 
-const plugins = [aliasPlugin, nodeResolve()];
+const plugins = [aliasPlugin, nodeResolve({ browser: true, preferBuiltins: false })];
 
 export default [
   // Content Script bundle
@@ -47,16 +47,6 @@ export default [
       file: 'popup/popup.js',
       format: 'iife',
       name: 'LuminaPopup',
-    },
-    plugins,
-  },
-  // Side Panel bundle
-  {
-    input: 'src/sidepanel/main.js',
-    output: {
-      file: 'sidepanel/sidepanel.js',
-      format: 'iife',
-      name: 'LuminaSidePanel',
     },
     plugins,
   },

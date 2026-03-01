@@ -6,6 +6,7 @@
  * The ONNX model can override these classifications when available.
  */
 import { LearningState, PlatformType, SensorConfig } from '../shared/constants.js';
+import { pipeline, env } from '@xenova/transformers';
 
 // ─── Thresholds ────────────────────────────────────────────────────────────────
 
@@ -176,6 +177,42 @@ async function generateNudgeFromLLM(promptText, fallbackPrompt) {
     }
   } catch (err) {
     console.error('[Lumina Offscreen] LLM generation error:', err);
+  }
+  
+  // Phase 4: Fallback to Transformers.js WebAssembly / WebGPU (UAC 2 Compliance)
+  try {
+    console.log('[Lumina Offscreen] 🧠 Falling back to local Transformers.js model (Xenova/LaMini-Flan-T5-77M)...');
+    
+    // Disable local model lookup to allow downloading directly from Hugging Face Edge cache
+    env.allowLocalModels = false;
+    
+    // Lazy-load the pipeline globally so we only download the weights once per session
+    if (!window.transformersPipeline) {
+      window.transformersPipeline = await pipeline('text2text-generation', 'Xenova/LaMini-Flan-T5-77M', {
+        progress_callback: (x) => {
+          if (x.status === 'progress') {
+            // Keep console quiet unless debugging
+          } else if (x.status === 'ready') {
+            console.log(`[Lumina Offscreen] Target file loaded: ${x.file}`);
+          }
+        }
+      });
+    }
+
+    const generator = window.transformersPipeline;
+    const output = await generator(promptText, {
+      max_new_tokens: 50,
+      temperature: 0.7,
+      do_sample: true
+    });
+
+    if (output && output.length > 0 && output[0].generated_text) {
+      const generatedText = output[0].generated_text.trim();
+      console.log(`[Lumina Offscreen] ✨ Received AI Response (Transformers.js): \n\n${generatedText}`);
+      return { message: generatedText, is_dynamic: true };
+    }
+  } catch (err) {
+    console.error('[Lumina Offscreen] Transformers.js fallback error:', err);
   }
   
   // Demonstration Fallback: If the user doesn't have chrome://flags/#prompt-api-for-gemini-nano enabled,
