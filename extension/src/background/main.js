@@ -9,6 +9,7 @@
 import { initRouter } from './router.js';
 import { saveSession, loadSession, DEFAULT_SESSION } from './storage.js';
 import { startFederatedSyncLoop } from './federated.js';
+import { getQueuePublisher } from './queue-publisher.js';
 const isTestEnv = typeof process !== 'undefined' && process.env && process.env.NODE_ENV === 'test';
 
 // ---- Inject Node.js require polyfill for onnxruntime-web fallback ----
@@ -24,6 +25,9 @@ if (typeof globalThis.require === 'undefined') {
 export function initServiceWorker() {
   // Register the message router
   initRouter();
+  getQueuePublisher().init().catch((err) => {
+    console.warn('[Lumina SW] Queue publisher init failed:', err.message);
+  });
   if (!isTestEnv) {
     startFederatedSyncLoop(loadSession);
   }

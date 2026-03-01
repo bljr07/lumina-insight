@@ -6,14 +6,38 @@
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { initServiceWorker } from '@background/main.js';
+import { setQueuePublisherForRouterTesting } from '@background/router.js';
+import { setQueuePublisherForTesting } from '@background/queue-publisher.js';
 import { MessageType, LearningState } from '@shared/constants.js';
 
 describe('initServiceWorker()', () => {
+  let queueStub;
+
+  beforeEach(() => {
+    queueStub = {
+      init: vi.fn().mockResolvedValue(undefined),
+      publish: vi.fn().mockResolvedValue({ published: true, buffered: false }),
+      getStatus: vi.fn().mockReturnValue({
+        connected: false,
+        connecting: false,
+        lastError: null,
+        bufferedCount: 0,
+        lastPublishAt: null,
+        lastPublishResult: null,
+        retriesInFlight: false,
+      }),
+      flushBuffer: vi.fn().mockResolvedValue(undefined),
+    };
+    setQueuePublisherForTesting(queueStub);
+    setQueuePublisherForRouterTesting(queueStub);
+  });
+
   it('should register an onMessage listener', () => {
     initServiceWorker();
 
     expect(chrome.runtime.onMessage.addListener).toHaveBeenCalledTimes(1);
     expect(chrome.runtime.onMessage.addListener).toHaveBeenCalledWith(expect.any(Function));
+    expect(queueStub.init).toHaveBeenCalledTimes(1);
   });
 
   it('should register an onInstalled listener', () => {
@@ -80,6 +104,19 @@ describe('initServiceWorker()', () => {
 
     expect(sendResponse).toHaveBeenCalledWith(
       expect.objectContaining({ alive: true })
+    );
+  });
+
+  it('should return queue status from runtime handler', async () => {
+    initServiceWorker();
+
+    const handler = chrome.runtime.onMessage.addListener.mock.calls[0][0];
+    const sendResponse = vi.fn();
+    handler({ type: MessageType.QUEUE_STATUS_REQUEST }, {}, sendResponse);
+
+    await new Promise((r) => setTimeout(r, 20));
+    expect(sendResponse).toHaveBeenCalledWith(
+      expect.objectContaining({ bufferedCount: 0 })
     );
   });
 

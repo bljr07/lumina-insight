@@ -13,6 +13,17 @@
           {{ error }}
       </div>
 
+      <div class="glass-panel p-4 flex items-center justify-between">
+          <div>
+              <div class="text-xs uppercase tracking-wider text-ui-muted">Telemetry Queue</div>
+              <div class="text-sm text-slate-200">{{ queueBadgeLabel }}</div>
+          </div>
+          <div class="text-right">
+              <div class="text-xs text-ui-muted">Buffered</div>
+              <div class="text-lg font-semibold text-white">{{ queueStatus.bufferedCount }}</div>
+          </div>
+      </div>
+
       <!-- Real-Time AI Status -->
       <div class="glass-panel p-5 text-center flex flex-col items-center justify-center space-y-2">
           <span class="text-xs font-semibold uppercase tracking-wider text-ui-muted mb-1">Current Learning State</span>
@@ -75,6 +86,11 @@
 <script setup>
 import { ref, onMounted, computed, onUnmounted, nextTick } from 'vue';
 import Chart from 'chart.js/auto';
+import {
+    DEFAULT_QUEUE_STATUS,
+    setupQueueStatusBridge,
+    toQueueBadgeLabel,
+} from './queue-status.js';
 
 const API_BASE = 'http://localhost:5000/api';
 
@@ -84,6 +100,7 @@ const ghostData = ref([]);
 const skillData = ref([]);
 const isLoading = ref(true);
 const error = ref(null);
+const queueStatus = ref({ ...DEFAULT_QUEUE_STATUS });
 
 const stateColorClass = computed(() => {
     switch (currentState.value) {
@@ -100,6 +117,8 @@ const stateLabel = computed(() => {
     if (currentState.value === 'PENDING_LOCAL_AI') return 'Analyzing Behavior...';
     return currentState.value.replaceAll('_', ' ');
 });
+
+const queueBadgeLabel = computed(() => toQueueBadgeLabel(queueStatus.value));
 
 const initExtensionState = () => {
     if (typeof chrome !== 'undefined' && chrome.runtime) {
@@ -124,9 +143,13 @@ const initExtensionState = () => {
             }
         };
         chrome.runtime.onMessage.addListener(messageListener);
+        const teardownQueueBridge = setupQueueStatusBridge(chrome.runtime, (nextStatus) => {
+            queueStatus.value = nextStatus;
+        });
         
         onUnmounted(() => {
             chrome.runtime.onMessage.removeListener(messageListener);
+            teardownQueueBridge();
         });
     } else {
         console.warn('[Vue] Not running in extension context.');

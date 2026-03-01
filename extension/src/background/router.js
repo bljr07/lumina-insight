@@ -10,6 +10,20 @@ import { classifyState } from '@offscreen/state-classifier.js';
 import { sanitizePacket } from '@shared/packet.js';
 import { ensureOffscreen } from './offscreen-manager.js';
 import { mapStateToNudge } from '@shared/nudge.js';
+import { getQueuePublisher } from './queue-publisher.js';
+
+let queuePublisher = null;
+
+function resolveQueuePublisher() {
+  if (!queuePublisher) {
+    queuePublisher = getQueuePublisher();
+  }
+  return queuePublisher;
+}
+
+export function setQueuePublisherForRouterTesting(publisher) {
+  queuePublisher = publisher;
+}
 
 /** Send a message to the offscreen doc with a timeout */
 function sendToOffscreenWithTimeout(msg, timeoutMs = 10000) {
@@ -25,6 +39,33 @@ function sendToOffscreenWithTimeout(msg, timeoutMs = 10000) {
         reject(err);
       });
   });
+}
+
+function hashString(input) {
+  let hash = 0;
+  for (let i = 0; i < input.length; i += 1) {
+    hash = ((hash << 5) - hash) + input.charCodeAt(i);
+    hash |= 0;
+  }
+  return `s_${Math.abs(hash)}`;
+}
+
+function createEventId() {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  return `evt_${Date.now()}_${Math.floor(Math.random() * 1000000)}`;
+}
+
+function toTelemetryPacket(packet) {
+  const sanitized = sanitizePacket(packet || {});
+  const domain = sanitized?.context?.domain || 'unknown';
+  return {
+    ...sanitized,
+    schema_version: 1,
+    event_id: createEventId(),
+    session_hash: hashString(domain),
+  };
 }
 
 /**
@@ -43,6 +84,13 @@ export async function handleMessage(message, sender, sendResponse) {
         session.packetCount = (session.packetCount || 0) + 1;
         // Strip transient_content and PII before hitting storage constraints (UAC 1)
         session.latestPacket = sanitizePacket(message.payload);
+        const telemetryPacket = toTelemetryPacket(message.payload);
+
+        try {
+          await resolveQueuePublisher().publish(telemetryPacket);
+        } catch (publishErr) {
+          console.warn('[Lumina SW] Queue publish failed:', publishErr.message);
+        }
 
         // Run rule-based classification on the metrics
         if (message.payload && message.payload.metrics) {
@@ -136,6 +184,17 @@ export async function handleMessage(message, sender, sendResponse) {
         await saveSession(session);
 
         sendResponse({ received: true });
+        break;
+      }
+
+      case MessageType.QUEUE_STATUS_REQUEST: {
+        sendResponse(resolveQueuePublisher().getStatus());
+        break;
+      }
+
+      case MessageType.QUEUE_FLUSH_REQUEST: {
+        await resolveQueuePublisher().flushBuffer();
+        sendResponse({ accepted: true });
         break;
       }
 

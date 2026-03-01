@@ -2,12 +2,18 @@ import { nodeResolve } from '@rollup/plugin-node-resolve';
 import alias from '@rollup/plugin-alias';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import dotenv from 'dotenv';
 
 import commonjs from '@rollup/plugin-commonjs';
 import json from '@rollup/plugin-json';
+import replace from '@rollup/plugin-replace';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+// Load local build secrets/config from .env first, then override with .env.local if present.
+dotenv.config({ path: path.resolve(__dirname, '.env'), quiet: true });
+dotenv.config({ path: path.resolve(__dirname, '.env.local'), override: true, quiet: true });
 
 const aliasPlugin = alias({
   entries: [
@@ -20,6 +26,14 @@ const aliasPlugin = alias({
 });
 
 const plugins = [
+  replace({
+    preventAssignment: true,
+    'process.env.RABBITMQ_WS_URL': JSON.stringify(process.env.RABBITMQ_WS_URL || ''),
+    'process.env.RABBITMQ_WS_LOGIN': JSON.stringify(process.env.RABBITMQ_WS_LOGIN || ''),
+    'process.env.RABBITMQ_WS_PASSCODE': JSON.stringify(process.env.RABBITMQ_WS_PASSCODE || ''),
+    'process.env.RABBITMQ_EXCHANGE': JSON.stringify(process.env.RABBITMQ_EXCHANGE || 'lumina.events'),
+    'process.env.RABBITMQ_ROUTING_KEY': JSON.stringify(process.env.RABBITMQ_ROUTING_KEY || 'behavior.packet'),
+  }),
   aliasPlugin, 
   nodeResolve({ browser: true, preferBuiltins: false }),
   commonjs(),
