@@ -28,14 +28,34 @@ const Index = () => {
 
         {/* Main grid */}
         <div className="grid grid-cols-2 gap-6 mt-6">
-          <PulseHeatmap />
-          <KnowledgeGraph />
-          <GhostMode />
+          <section id="pulse-dashboard" className="scroll-mt-8">
+            <PulseHeatmap />
+          </section>
+          <section id="knowledge-graph" className="scroll-mt-8">
+            <KnowledgeGraph />
+          </section>
+          <section id="ghost-mode" className="scroll-mt-8">
+            <GhostMode />
+          </section>
           <div className="space-y-6">
-            <SkillRadar />
-            <ContextualNudges />
+            <section id="skill-radar" className="scroll-mt-8">
+              <SkillRadar />
+            </section>
+            <section id="nudges" className="scroll-mt-8">
+              <ContextualNudges />
+            </section>
           </div>
         </div>
+
+        {/* Growth section */}
+        <section id="growth" className="scroll-mt-8 mt-6">
+          <div className="bg-card rounded-xl border border-border p-6 animate-fade-in">
+            <h2 className="text-lg font-semibold text-foreground mb-1">Growth Trajectory</h2>
+            <p className="text-sm text-muted-foreground">
+              Your long-term learning patterns and milestones — coming soon.
+            </p>
+          </div>
+        </section>
       </main>
     </div>
   );

@@ -1,5 +1,6 @@
 import { cn } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
+import { mockHeatmapData } from "@/lib/mockData";
 
 const dayLabels = ["Mon", "", "Wed", "", "Fri", "", "Sun"];
 const monthLabels = ["Jan", "Feb", "Mar"];
@@ -13,16 +14,16 @@ const intensityClasses = [
 ];
 
 export const PulseHeatmap = () => {
-  const { data: heatmapData = [], isLoading } = useQuery({
+  const { data: heatmapData = [] } = useQuery({
     queryKey: ["pulse-heatmap"],
     queryFn: async () => {
       const res = await fetch("/api/pulse-heatmap");
       if (!res.ok) throw new Error("Failed to fetch heatmap");
       return res.json();
-    }
+    },
+    initialData: mockHeatmapData,
+    retry: 1,
   });
-
-  if (isLoading) return <div className="h-64 animate-pulse bg-muted rounded-xl" />;
 
   return (
     <div className="bg-card rounded-xl border border-border p-6 animate-fade-in" style={{ animationDelay: "0.1s" }}>

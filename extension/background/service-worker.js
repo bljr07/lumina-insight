@@ -277,7 +277,27 @@ var LuminaBackground = (function (exports) {
           // Run rule-based classification on the metrics
           if (message.payload && message.payload.metrics) {
             try {
-              session.lastState = classifyState(message.payload.metrics);
+              let nextState = classifyState(message.payload.metrics);
+
+              // Phase 2: Attempt to utilize the Offscreen ONNX AI Engine
+              try {
+                const aiResult = await chrome.runtime.sendMessage({
+                  type: MessageType.INFERENCE_REQUEST,
+                  payload: message.payload
+                });
+
+                if (aiResult && aiResult.state && aiResult.state !== 'UNKNOWN') {
+                  nextState = aiResult.state;
+                  console.debug('[Lumina SW] State classified via ONNX Engine:', nextState);
+                } else {
+                  console.debug('[Lumina SW] State classified via Rule Fallback:', nextState);
+                }
+              } catch (onnxErr) {
+                // If offscreen doesn't respond, we fall back to the rule-based engine silently
+                console.debug('[Lumina SW] State classified via Rule Fallback (ONNX failed or loading):', nextState);
+              }
+
+              session.lastState = nextState;
               const currentContent = message.payload.transient_content || null;
               
               const stateChanged = session.lastState !== session.lastPromptedState;
