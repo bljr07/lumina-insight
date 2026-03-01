@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
-import { Brain, LayoutDashboard, Ghost, Radar, Bell, TrendingUp, Settings, Sun, Moon, Menu, X } from "lucide-react";
+import { Brain, LayoutDashboard, Ghost, Radar, Bell, TrendingUp, Settings, Sun, Moon, Menu, X, HelpCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
+import { FeatureGuide } from "@/components/FeatureGuide";
 import {
   Dialog,
   DialogContent,
@@ -35,6 +36,7 @@ export const DashboardSidebar = () => {
   const [activeItem, setActiveItem] = useState("Pulse Dashboard");
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [guideOpen, setGuideOpen] = useState(false);
 
   // Theme
   const [theme, setTheme] = useState(() =>
@@ -171,6 +173,15 @@ export const DashboardSidebar = () => {
           {theme === "dark" ? "Light Mode" : "Dark Mode"}
         </button>
 
+        {/* Feature Guide */}
+        <button
+          onClick={() => { setGuideOpen(true); setMobileOpen(false); }}
+          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-sidebar-foreground hover:bg-sidebar-accent transition-colors"
+        >
+          <HelpCircle className="w-4 h-4" />
+          Feature Guide
+        </button>
+
         <button
           onClick={handleOpenSettings}
           className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-sidebar-foreground hover:bg-sidebar-accent transition-colors"
@@ -280,6 +291,8 @@ export const DashboardSidebar = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <FeatureGuide open={guideOpen} onClose={() => setGuideOpen(false)} />
     </>
   );
 };
