@@ -1,7 +1,10 @@
+import { useState } from "react";
 import { Coffee, BookOpen, Zap, ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
 import { mockNudges } from "@/lib/mockData";
+import { motion } from "framer-motion";
+import { BreakTimer } from "@/components/BreakTimer";
 
 const typeStyles: Record<string, string> = {
   wellbeing: "border-lumina-warning/20 bg-lumina-warning/5",
@@ -21,7 +24,24 @@ const iconMap: Record<string, any> = {
   Zap,
 };
 
+const nudgeVariants = {
+  hidden: { opacity: 0, y: 15, scale: 0.97 },
+  visible: (i: number) => ({
+    opacity: 1,
+    y: 0,
+    scale: 1,
+    transition: {
+      type: "spring",
+      stiffness: 200,
+      damping: 18,
+      delay: 0.1 + i * 0.12,
+    },
+  }),
+};
+
 export const ContextualNudges = () => {
+  const [breakTimerOpen, setBreakTimerOpen] = useState(false);
+
   const { data: nudges = [] } = useQuery({
     queryKey: ["nudges"],
     queryFn: async () => {
@@ -33,6 +53,13 @@ export const ContextualNudges = () => {
     retry: 1,
   });
 
+  const handleAction = (nudge: any) => {
+    // Open break timer for the "Take a Breather" nudge
+    if (nudge.type === "wellbeing") {
+      setBreakTimerOpen(true);
+    }
+  };
+
   return (
     <div className="bg-card rounded-xl border border-border p-6 animate-fade-in" style={{ animationDelay: "0.25s" }}>
       <h2 className="text-lg font-semibold text-foreground mb-1">Contextual Nudges</h2>
@@ -42,9 +69,14 @@ export const ContextualNudges = () => {
         {nudges.map((nudge: any, i: number) => {
           const Icon = iconMap[nudge.icon];
           return (
-            <div
+            <motion.div
               key={i}
-              className={cn("rounded-lg border p-4 transition-all hover:scale-[1.01]", typeStyles[nudge.type] || typeStyles.wellbeing)}
+              variants={nudgeVariants}
+              custom={i}
+              initial="hidden"
+              animate="visible"
+              whileHover={{ scale: 1.02, transition: { type: "spring", stiffness: 400, damping: 15 } }}
+              className={cn("rounded-lg border p-4 transition-all cursor-default", typeStyles[nudge.type] || typeStyles.wellbeing)}
             >
               <div className="flex items-start gap-3">
                 <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center shrink-0", typeIconStyles[nudge.type] || typeIconStyles.wellbeing)}>
@@ -56,24 +88,35 @@ export const ContextualNudges = () => {
                     <span className="text-[10px] text-muted-foreground">{nudge.time}</span>
                   </div>
                   <p className="text-xs text-muted-foreground leading-relaxed">{nudge.message}</p>
-                  <button className="mt-2 flex items-center gap-1 text-xs font-medium text-primary hover:underline">
+                  <button
+                    onClick={() => handleAction(nudge)}
+                    className="mt-2 flex items-center gap-1 text-xs font-medium text-primary hover:underline cursor-pointer"
+                  >
                     {nudge.action}
                     <ArrowRight className="w-3 h-3" />
                   </button>
                 </div>
               </div>
-            </div>
+            </motion.div>
           );
         })}
       </div>
 
       {/* Struggle normalization */}
-      <div className="mt-4 rounded-lg bg-muted/50 border border-border p-3">
+      <motion.div
+        className="mt-4 rounded-lg bg-muted/50 border border-border p-3"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 0.8 }}
+      >
         <p className="text-xs text-muted-foreground italic">
           "85% of successful students spent more than 2 hours on this specific JOIN optimization.{" "}
           <span className="text-foreground font-medium not-italic">You are exactly where you need to be.</span>"
         </p>
-      </div>
+      </motion.div>
+
+      {/* Break Timer Dialog */}
+      <BreakTimer open={breakTimerOpen} onClose={() => setBreakTimerOpen(false)} />
     </div>
   );
 };
