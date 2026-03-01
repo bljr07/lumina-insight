@@ -1,38 +1,39 @@
 # Lumina Insight
 
-A privacy-first browser plugin for students to learn better.
+Privacy-first learning analytics platform with:
+- `extension/`: Chrome MV3 extension (content script, service worker, offscreen inference, sidepanel)
+- `web_app/`: React dashboard + Flask backend API
 
-A full-stack project featuring a Chrome browser extension (Manifest V3), a web frontend, a backend API, and database scripts.
+## Quick Start
 
-## Project Structure
-
-```
-lumina-insight/
-├── extension/       ← Chrome extension (Manifest V3)
-│   ├── manifest.json
-│   ├── background/
-│   │   └── service-worker.js
-│   ├── popup/
-│   │   ├── popup.html
-│   │   ├── popup.css
-│   │   └── popup.js
-│   ├── content/
-│   │   ├── content.js
-│   │   └── content.css
-│   └── icons/
-├── frontend/        ← Web frontend
-├── backend/         ← Backend API
-└── database/        ← Database migrations & scripts
+### Extension
+```bash
+cd extension
+npm install
+npm run build
+npm test
 ```
 
-## Getting Started
+### Web App (Frontend)
+```bash
+cd web_app
+npm install
+npm run dev
+```
 
-### Browser Extension
+### Web App (Backend)
+```bash
+cd web_app/backend
+pip install -r requirements.txt
+python seed_data.py
+python app.py
+```
 
-1. Open `chrome://extensions` in Chrome.
-2. Enable **Developer mode** (top-right toggle).
-3. Click **Load unpacked** and select the `extension/` folder.
+The frontend proxies `/api/*` calls to `http://localhost:5000`.
 
-### Frontend / Backend / Database
+## Quality Gates
 
-_Coming soon._
+- Extension tests: `cd extension && npm test`
+- Web app tests: `cd web_app && npm test`
+- Web app production build: `cd web_app && npm run build`
+- CI workflow enforces `npm ci && npm run build` for `web_app`.

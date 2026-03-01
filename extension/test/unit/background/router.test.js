@@ -87,6 +87,23 @@ describe('handleMessage()', () => {
       })
     );
   });
+
+  it('should handle STATE_UPDATED broadcast when sendMessage is not promise-like', async () => {
+    chrome.runtime.sendMessage.mockReturnValue(undefined);
+    const packet = {
+      type: MessageType.BEHAVIORAL_PACKET,
+      payload: {
+        context: { domain: 'kahoot.it', type: 'QUIZ' },
+        metrics: { dwell_time_ms: 5000, scroll_velocity: 0, mouse_jitter: 0.3, tab_switches: 0, re_read_cycles: 0 },
+        inferred_state: LearningState.PENDING_LOCAL_AI,
+        timestamp: Date.now(),
+      },
+    };
+    const sendResponse = vi.fn();
+
+    await expect(handleMessage(packet, {}, sendResponse)).resolves.toBeUndefined();
+    expect(sendResponse).toHaveBeenCalledWith({ received: true });
+  });
 });
 
 describe('initRouter()', () => {

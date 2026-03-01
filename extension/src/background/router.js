@@ -15,7 +15,7 @@ import { mapStateToNudge } from '@shared/nudge.js';
 function sendToOffscreenWithTimeout(msg, timeoutMs = 10000) {
   return new Promise((resolve, reject) => {
     const timer = setTimeout(() => reject(new Error('Offscreen response timed out')), timeoutMs);
-    chrome.runtime.sendMessage(msg)
+    Promise.resolve(chrome.runtime.sendMessage(msg))
       .then((response) => {
         clearTimeout(timer);
         resolve(response);
@@ -121,10 +121,10 @@ export async function handleMessage(message, sender, sendResponse) {
             }
             
             // Broadcast the new state to any open side panels or popups
-            chrome.runtime.sendMessage({
+            Promise.resolve(chrome.runtime.sendMessage({
               type: MessageType.STATE_UPDATED,
               payload: { state: session.lastState, nudge: session.lastNudge }
-            }).catch(() => {
+            })).catch(() => {
               // Ignore errors (happens if no popup/panel is open to receive it)
             });
             

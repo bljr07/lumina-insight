@@ -16,7 +16,7 @@ interface TimelinePoint {
   score: number;
 }
 
-const barVariants = {
+const barVariants: any = {
   hidden: { scaleY: 0 },
   visible: (i: number) => ({
     scaleY: 1,
@@ -29,7 +29,7 @@ const barVariants = {
   }),
 };
 
-const rowVariants = {
+const rowVariants: any = {
   hidden: { opacity: 0, x: -20 },
   visible: (i: number) => ({
     opacity: 1,
@@ -57,6 +57,9 @@ export const GhostMode = () => {
 
   const ghostData: GhostData[] = data?.ghostData || [];
   const timelinePoints: TimelinePoint[] = data?.timelinePoints || [];
+  const hasTimeline = timelinePoints.length > 0;
+  const firstPoint = hasTimeline ? timelinePoints[0] : null;
+  const lastPoint = hasTimeline ? timelinePoints[timelinePoints.length - 1] : null;
 
   const maxScore = Math.max(...timelinePoints.map((p) => p.score), 1);
 
@@ -70,35 +73,43 @@ export const GhostMode = () => {
 
       {/* Mini sparkline */}
       <div className="mb-6">
-        <div className="flex items-end gap-1 h-16">
-          {timelinePoints.map((point, i) => (
-            <div key={i} className="flex-1 flex flex-col items-center gap-1">
-              <motion.div
-                className="w-full rounded-t-sm bg-lumina-ghost/30 hover:bg-lumina-ghost/50 transition-colors relative"
-                style={{ height: `${(point.score / maxScore) * 100}%`, originY: 1 }}
-                variants={barVariants}
-                custom={i}
-                initial="hidden"
-                animate="visible"
-              >
-                {i === timelinePoints.length - 1 && (
+        {hasTimeline ? (
+          <>
+            <div className="flex items-end gap-1 h-16">
+              {timelinePoints.map((point, i) => (
+                <div key={i} className="flex-1 flex flex-col items-center gap-1">
                   <motion.div
-                    className="absolute -top-5 left-1/2 -translate-x-1/2 text-xs font-semibold text-lumina-ghost"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ delay: 1 }}
+                    className="w-full rounded-t-sm bg-lumina-ghost/30 hover:bg-lumina-ghost/50 transition-colors relative"
+                    style={{ height: `${(point.score / maxScore) * 100}%`, originY: 1 }}
+                    variants={barVariants}
+                    custom={i}
+                    initial="hidden"
+                    animate="visible"
                   >
-                    {point.score}
+                    {i === timelinePoints.length - 1 && (
+                      <motion.div
+                        className="absolute -top-5 left-1/2 -translate-x-1/2 text-xs font-semibold text-lumina-ghost"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        transition={{ delay: 1 }}
+                      >
+                        {point.score}
+                      </motion.div>
+                    )}
                   </motion.div>
-                )}
-              </motion.div>
-              <span className="text-[9px] text-muted-foreground">{point.month}</span>
+                  <span className="text-[9px] text-muted-foreground">{point.month}</span>
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
-        <p className="text-xs text-muted-foreground mt-2">
-          <span className="text-lumina-ghost font-medium">Mastery Velocity:</span> +{timelinePoints[timelinePoints.length - 1].score - timelinePoints[0].score} pts since {timelinePoints[0].month}
-        </p>
+            <p className="text-xs text-muted-foreground mt-2">
+              <span className="text-lumina-ghost font-medium">Mastery Velocity:</span> +{(lastPoint?.score || 0) - (firstPoint?.score || 0)} pts since {firstPoint?.month}
+            </p>
+          </>
+        ) : (
+          <div className="rounded-lg border border-border bg-muted/50 p-3">
+            <p className="text-xs text-muted-foreground">No historical timeline available yet. Keep learning to build your trend line.</p>
+          </div>
+        )}
       </div>
 
       {/* Comparison cards */}

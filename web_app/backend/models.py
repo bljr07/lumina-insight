@@ -1,4 +1,5 @@
 from flask_sqlalchemy import SQLAlchemy
+import json
 
 db = SQLAlchemy()
 
@@ -126,8 +127,16 @@ class GlobalModel(db.Model):
     timestamp = db.Column(db.DateTime, server_default=db.func.now())
 
     def to_dict(self):
+        parsed_weights = []
+        try:
+            raw = json.loads(self.weights)
+            if isinstance(raw, list):
+                parsed_weights = raw
+        except Exception:
+            parsed_weights = []
+
         return {
             'version': self.version,
-            'weights': self.weights,
+            'weights': parsed_weights,
             'timestamp': self.timestamp.isoformat() if self.timestamp else None
         }
