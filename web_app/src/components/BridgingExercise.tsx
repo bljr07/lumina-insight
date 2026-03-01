@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ArrowRight, ArrowLeft, Check, X, RotateCcw, BookOpen } from "lucide-react";
 import { fireConfetti } from "@/lib/confetti";
+import { saveQuizResult } from "@/lib/supabase-service";
 
 interface Card {
     question: string;
@@ -30,6 +31,7 @@ export const BridgingExercise = ({ open, onClose }: BridgingExerciseProps) => {
     const [showHint, setShowHint] = useState(false);
     const [score, setScore] = useState({ correct: 0, total: 0 });
     const [done, setDone] = useState(false);
+    const [cardResults, setCardResults] = useState<{ topic: string; question: string; knew: boolean }[]>([]);
 
     const card = cards[idx];
 
@@ -39,11 +41,14 @@ export const BridgingExercise = ({ open, onClose }: BridgingExerciseProps) => {
         setShowHint(false);
         setScore({ correct: 0, total: 0 });
         setDone(false);
+        setCardResults([]);
     };
 
     const handleResponse = (knew: boolean) => {
         const newScore = { correct: score.correct + (knew ? 1 : 0), total: score.total + 1 };
+        const newResults = [...cardResults, { topic: card.topic, question: card.question, knew }];
         setScore(newScore);
+        setCardResults(newResults);
         setFlipped(false);
         setShowHint(false);
         if (idx + 1 >= cards.length) {
@@ -52,6 +57,12 @@ export const BridgingExercise = ({ open, onClose }: BridgingExerciseProps) => {
             if (newScore.correct >= cards.length * 0.8) {
                 setTimeout(() => fireConfetti(), 300);
             }
+            // Save to Supabase
+            saveQuizResult({
+                totalCards: cards.length,
+                correct: newScore.correct,
+                cardDetails: newResults,
+            });
         } else {
             setIdx(idx + 1);
         }
