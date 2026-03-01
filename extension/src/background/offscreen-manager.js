@@ -25,6 +25,10 @@ export async function ensureOffscreen() {
       reasons: OFFSCREEN_REASONS,
       justification: OFFSCREEN_JUSTIFICATION,
     });
+
+    // Wait for the offscreen document's script to load and register listeners
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    console.log('[Lumina SW] Offscreen document created and ready');
   } catch (err) {
     console.error('[Lumina SW] Failed to create offscreen document:', err);
   }

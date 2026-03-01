@@ -6,10 +6,11 @@
 </head>
 <body>
   <!--
-    This hidden document hosts ONNX Runtime Web for on-device AI inference.
+    This hidden document hosts ONNX Runtime Web for on-device AI inference
+    and LLM-powered nudge generation (window.ai / Transformers.js).
     It communicates with the Service Worker via chrome.runtime messaging.
     No UI is rendered — this document exists solely for WebGPU/Wasm access.
   -->
-  <script type="module" src="main.js"></script>
+  <script src="../../offscreen/offscreen.js"></script>
 </body>
 </html>

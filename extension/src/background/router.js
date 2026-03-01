@@ -9,6 +9,23 @@ import { saveSession, loadSession } from './storage.js';
 import { classifyState } from '@offscreen/state-classifier.js';
 import { sanitizePacket } from '@shared/packet.js';
 import { ensureOffscreen } from './offscreen-manager.js';
+import { mapStateToNudge } from '@shared/nudge.js';
+
+/** Send a message to the offscreen doc with a timeout */
+function sendToOffscreenWithTimeout(msg, timeoutMs = 10000) {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error('Offscreen response timed out')), timeoutMs);
+    chrome.runtime.sendMessage(msg)
+      .then((response) => {
+        clearTimeout(timer);
+        resolve(response);
+      })
+      .catch((err) => {
+        clearTimeout(timer);
+        reject(err);
+      });
+  });
+}
 
 /**
  * Handle an incoming runtime message.
@@ -58,26 +75,45 @@ export async function handleMessage(message, sender, sendResponse) {
             const contentChanged = currentContent !== session.lastPromptedContent;
 
             if (stateChanged || contentChanged) {
-              // Ask Offscreen Document to run LLM logic
-              console.log(`[Lumina SW] 📤 Requesting Generative Nudge for state: ${session.lastState}`);
-              console.log(`[Lumina SW] 📎 Transient content extracted: "${currentContent || 'None'}"`);
-              await ensureOffscreen();
-              const generateResponse = await chrome.runtime.sendMessage({
-                type: MessageType.GENERATE_NUDGE,
-                payload: {
-                  state: session.lastState,
-                  platform: message.payload.context.type,
-                  transient_content: currentContent
-                }
-              }).catch(() => null);
+              console.log(`[Lumina SW] 📤 Generating Nudge for state: ${session.lastState}`);
+              console.log(`[Lumina SW] 📎 Transient content: "${(currentContent || 'None').substring(0, 60)}"`);
 
-              if (generateResponse && generateResponse.nudge) {
-                session.lastNudge = generateResponse.nudge;
-              } else {
-                session.lastNudge = null;
+              // Ensure offscreen doc exists (creates if needed, waits for listener)
+              await ensureOffscreen();
+
+              try {
+                // Send to offscreen doc for LLM-powered nudge generation
+                const generateResponse = await sendToOffscreenWithTimeout({
+                  type: MessageType.GENERATE_NUDGE,
+                  payload: {
+                    state: session.lastState,
+                    platform: message.payload.context.type,
+                    transient_content: currentContent
+                  }
+                });
+
+                if (generateResponse && generateResponse.nudge) {
+                  session.lastNudge = generateResponse.nudge;
+                  console.log('[Lumina SW] ✅ LLM Nudge received:', session.lastNudge.message?.substring(0, 60));
+                } else if (generateResponse && generateResponse.error) {
+                  console.warn('[Lumina SW] Offscreen error:', generateResponse.error);
+                  // Fallback to static nudge
+                  const staticNudge = mapStateToNudge(session.lastState);
+                  session.lastNudge = (staticNudge && staticNudge.type !== 'idle' && staticNudge.type !== 'pending')
+                    ? { ...staticNudge, is_dynamic: false }
+                    : null;
+                } else {
+                  session.lastNudge = null;
+                }
+              } catch (nudgeErr) {
+                console.warn('[Lumina SW] Nudge generation failed, using static fallback:', nudgeErr.message);
+                const staticNudge = mapStateToNudge(session.lastState);
+                session.lastNudge = (staticNudge && staticNudge.type !== 'idle' && staticNudge.type !== 'pending')
+                  ? { ...staticNudge, is_dynamic: false }
+                  : null;
               }
 
-              // Update cache to prevent redundant LLM calls
+              // Update cache to prevent redundant calls
               session.lastPromptedState = session.lastState;
               session.lastPromptedContent = currentContent;
             } else {
