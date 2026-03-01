@@ -1,16 +1,124 @@
-// Popup script for Lumina Insight
+var LuminaPopup = (function (exports) {
+  'use strict';
 
-document.addEventListener('DOMContentLoaded', () => {
-  const greetBtn = document.getElementById('greet-btn');
-  const status = document.getElementById('status');
+  /**
+   * Shared constants for Lumina Insight
+   *
+   * Learning states, platform types, and message types used across all layers.
+   */
 
-  greetBtn.addEventListener('click', async () => {
-    try {
-      const response = await chrome.runtime.sendMessage({ type: 'GREET' });
-      status.textContent = response.greeting;
-    } catch (error) {
-      console.error('Error sending message:', error);
-      status.textContent = 'Could not reach background service.';
-    }
+  /** Possible inferred learning states */
+  const LearningState = Object.freeze({
+    PENDING_LOCAL_AI: 'PENDING_LOCAL_AI',
+    FOCUSED: 'FOCUSED',
+    STALLED: 'STALLED',
+    STRUGGLING: 'STRUGGLING',
+    DEEP_READING: 'DEEP_READING',
+    RE_READING: 'RE_READING',
   });
-});
+
+  /** Message types for chrome.runtime.sendMessage routing */
+  const MessageType = Object.freeze({
+    BEHAVIORAL_PACKET: 'BEHAVIORAL_PACKET',
+    INFERENCE_REQUEST: 'INFERENCE_REQUEST',
+    INFERENCE_RESULT: 'INFERENCE_RESULT',
+    GET_STATE: 'GET_STATE',
+    HEARTBEAT: 'HEARTBEAT',
+  });
+
+  /**
+   * Popup Main — Learning State Display
+   *
+   * Requests the current session state from the Service Worker
+   * and renders it in the popup UI.
+   */
+
+  // ─── State Labels ──────────────────────────────────────────────────────────────
+
+  const STATE_LABELS = {
+    [LearningState.FOCUSED]: { label: '🎯 Focused', class: 'state-focused' },
+    [LearningState.STRUGGLING]: { label: '😰 Struggling', class: 'state-struggling' },
+    [LearningState.STALLED]: { label: '⏸️ Stalled', class: 'state-stalled' },
+    [LearningState.DEEP_READING]: { label: '📖 Deep Reading', class: 'state-deep-reading' },
+    [LearningState.RE_READING]: { label: '🔄 Re-Reading', class: 'state-re-reading' },
+    [LearningState.PENDING_LOCAL_AI]: { label: '⏳ Analyzing...', class: 'state-pending' },
+  };
+
+  // ─── Rendering ─────────────────────────────────────────────────────────────────
+
+  /**
+   * Render the session state into the popup DOM.
+   *
+   * @param {object|null} session - Session data from the service worker
+   */
+  function renderState(session) {
+    const stateEl = document.getElementById('state-display');
+    const platformEl = document.getElementById('platform-display');
+    const countEl = document.getElementById('packet-count');
+    const statusEl = document.getElementById('status');
+
+    if (!session) {
+      statusEl.textContent = 'Browse a page to start monitoring';
+      stateEl.textContent = 'No data yet';
+      stateEl.className = 'state-idle';
+      platformEl.textContent = '--';
+      countEl.textContent = '0';
+      return;
+    }
+
+    // Learning state
+    if (session.lastState && STATE_LABELS[session.lastState]) {
+      const stateInfo = STATE_LABELS[session.lastState];
+      stateEl.textContent = stateInfo.label;
+      stateEl.className = stateInfo.class;
+    } else {
+      stateEl.textContent = 'Idle';
+      stateEl.className = 'state-idle';
+    }
+
+    // Platform
+    if (session.latestPacket && session.latestPacket.context) {
+      platformEl.textContent = session.latestPacket.context.domain || '--';
+    } else {
+      platformEl.textContent = '--';
+    }
+
+    // Packet count
+    countEl.textContent = String(session.packetCount || 0);
+
+    // Status
+    statusEl.textContent = 'Monitoring active';
+  }
+
+  // ─── Initialization ────────────────────────────────────────────────────────────
+
+  /**
+   * Initialize the popup: request state and render.
+   */
+  async function initPopup() {
+    try {
+      const response = await chrome.runtime.sendMessage({ type: MessageType.GET_STATE });
+      console.debug('[Lumina Popup] Received state:', response);
+      renderState(response);
+    } catch (err) {
+      console.error('[Lumina Popup] Failed to get state from service worker:', err);
+      renderState(null);
+    }
+  }
+
+  // ─── Auto-initialize ───────────────────────────────────────────────────────────
+  const isTestEnv = typeof process !== 'undefined' && process.env && process.env.NODE_ENV === 'test';
+  if (!isTestEnv && typeof document !== 'undefined') {
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', initPopup);
+    } else {
+      initPopup();
+    }
+  }
+
+  exports.initPopup = initPopup;
+  exports.renderState = renderState;
+
+  return exports;
+
+})({});

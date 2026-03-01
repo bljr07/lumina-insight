@@ -1,4 +1,4 @@
-/* Popup styles */
+/* Popup Styles — Lumina Insight */
 *,
 *::before,
 *::after {
@@ -10,19 +10,27 @@
 body {
   font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
   width: 320px;
-  background: #1a1a2e;
+  background: #0f0f1a;
   color: #eaeaea;
 }
 
+/* ─── Header ──────────────────────────────────────── */
+
 .popup-container {
-  padding: 24px;
+  padding: 20px;
   display: flex;
   flex-direction: column;
   gap: 16px;
 }
 
+.popup-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
 h1 {
-  font-size: 1.25rem;
+  font-size: 1.15rem;
   font-weight: 700;
   background: linear-gradient(135deg, #6c63ff, #e040fb);
   -webkit-background-clip: text;
@@ -30,28 +38,82 @@ h1 {
   -webkit-text-fill-color: transparent;
 }
 
-#status {
-  font-size: 0.875rem;
-  color: #b0b0c0;
-}
-
-button {
-  padding: 10px 16px;
-  border: none;
-  border-radius: 8px;
-  font-size: 0.875rem;
+.badge {
+  font-size: 0.65rem;
   font-weight: 600;
-  cursor: pointer;
-  background: linear-gradient(135deg, #6c63ff, #e040fb);
-  color: #fff;
-  transition: opacity 0.2s ease, transform 0.15s ease;
+  padding: 2px 8px;
+  border-radius: 50px;
+  background: rgba(108, 99, 255, 0.15);
+  color: #9d97ff;
+  border: 1px solid rgba(108, 99, 255, 0.3);
+  letter-spacing: 0.5px;
 }
 
-button:hover {
-  opacity: 0.9;
-  transform: translateY(-1px);
+/* ─── State Card ──────────────────────────────────── */
+
+.state-card {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  padding: 16px;
+  text-align: center;
 }
 
-button:active {
-  transform: translateY(0);
+.label {
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: #666;
+  margin-bottom: 6px;
+}
+
+.state-value {
+  font-size: 1.35rem;
+  font-weight: 700;
+  transition: color 0.3s ease;
+}
+
+/* State colors */
+.state-focused { color: #4ade80; }
+.state-struggling { color: #f87171; }
+.state-stalled { color: #fbbf24; }
+.state-deep-reading { color: #60a5fa; }
+.state-re-reading { color: #c084fc; }
+.state-pending { color: #94a3b8; }
+.state-idle { color: #64748b; }
+
+/* ─── Info Row ────────────────────────────────────── */
+
+.info-row {
+  display: flex;
+  gap: 12px;
+}
+
+.info-item {
+  flex: 1;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  padding: 12px;
+  text-align: center;
+}
+
+.info-value {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #d1d5db;
+  margin-top: 4px;
+}
+
+/* ─── Status Bar ──────────────────────────────────── */
+
+.status-bar {
+  font-size: 0.75rem;
+  color: #4ade80;
+  text-align: center;
+  padding: 8px;
+  background: rgba(74, 222, 128, 0.08);
+  border-radius: 8px;
+  border: 1px solid rgba(74, 222, 128, 0.15);
 }

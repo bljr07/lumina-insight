@@ -8,9 +8,28 @@
 </head>
 <body>
   <div class="popup-container">
-    <h1>Lumina Insight</h1>
-    <p id="status">Extension is active.</p>
-    <button id="greet-btn">Say Hello</button>
+    <header class="popup-header">
+      <h1>Lumina Insight</h1>
+      <span class="badge">MV3</span>
+    </header>
+
+    <div class="state-card">
+      <div class="label">Learning State</div>
+      <div id="state-display" data-testid="state-display" class="state-value">--</div>
+    </div>
+
+    <div class="info-row">
+      <div class="info-item">
+        <div class="label">Platform</div>
+        <div id="platform-display" data-testid="platform-display" class="info-value">--</div>
+      </div>
+      <div class="info-item">
+        <div class="label">Packets</div>
+        <div id="packet-count" data-testid="packet-count" class="info-value">0</div>
+      </div>
+    </div>
+
+    <div id="status" data-testid="status" class="status-bar">Loading...</div>
   </div>
   <script src="popup.js"></script>
 </body>

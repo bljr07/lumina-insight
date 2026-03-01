@@ -1,0 +1,26 @@
+{
+  "name": "lumina-insight-extension",
+  "version": "1.0.0",
+  "description": "A privacy-first browser extension for student learning state monitoring (Manifest V3)",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "test:e2e": "playwright test test/e2e/",
+    "build": "rollup -c",
+    "build:watch": "rollup -c --watch"
+  },
+  "devDependencies": {
+    "@anthropic-ai/sdk": "^0.30.0",
+    "@playwright/test": "^1.58.2",
+    "@rollup/plugin-alias": "^6.0.0",
+    "@rollup/plugin-node-resolve": "^16.0.3",
+    "@vitest/coverage-v8": "^3.0.0",
+    "jsdom": "^25.0.0",
+    "rollup": "^4.59.0",
+    "sinon-chrome": "^3.0.1",
+    "vitest": "^3.0.0"
+  }
+}

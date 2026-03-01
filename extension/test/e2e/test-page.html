@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Lumina Insight Test Page</title>
+  <style>
+    body {
+      font-family: system-ui, sans-serif;
+      max-width: 800px;
+      margin: 40px auto;
+      padding: 0 20px;
+      line-height: 1.6;
+    }
+    .quiz-section {
+      border: 2px solid #333;
+      border-radius: 8px;
+      padding: 20px;
+      margin: 20px 0;
+    }
+    .answer-button {
+      display: block;
+      width: 100%;
+      padding: 12px;
+      margin: 8px 0;
+      font-size: 16px;
+      cursor: pointer;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      background: #f9f9f9;
+    }
+    .answer-button:hover { background: #e0e0ff; }
+    .reading-section {
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      padding: 20px;
+      margin: 20px 0;
+      background: #fafafa;
+    }
+    .long-content {
+      height: 2000px;
+      background: linear-gradient(to bottom, #fff, #f0f0ff);
+      padding: 20px;
+    }
+    #status { color: green; font-weight: bold; }
+  </style>
+</head>
+<body>
+  <h1>Lumina Insight — E2E Test Page</h1>
+  <p id="status">Extension test page loaded.</p>
+
+  <div class="quiz-section" data-testid="quiz-section">
+    <h2>Quiz Question</h2>
+    <p>What is the capital of France?</p>
+    <button class="answer-button" data-testid="answer-a">A) London</button>
+    <button class="answer-button" data-testid="answer-b">B) Paris</button>
+    <button class="answer-button" data-testid="answer-c">C) Berlin</button>
+    <button class="answer-button" data-testid="answer-d">D) Madrid</button>
+  </div>
+
+  <div class="reading-section" data-testid="reading-section">
+    <h2>Reading Material</h2>
+    <p id="paragraph-1">Lorem ipsum dolor sit amet, consectetur adipiscing elit. Integer nec odio. Praesent libero sed cursus ante dapibus diam.</p>
+    <p id="paragraph-2">Nulla quis sem at nibh elementum imperdiet. Duis sagittis ipsum. Praesent mauris. Fusce nec tellus sed augue semper porta.</p>
+    <p id="paragraph-3">Mauris massa. Vestibulum lacinia arcu eget nulla. Class aptent taciti sociosqu ad litora torquent per conubia nostra, per inceptos himenaeos.</p>
+  </div>
+
+  <div class="long-content" data-testid="scroll-area">
+    <p>Scroll down for more content...</p>
+  </div>
+</body>
+</html>
