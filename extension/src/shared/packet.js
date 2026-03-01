@@ -12,7 +12,7 @@ import { LearningState } from './constants.js';
 
 const ALLOWED_PACKET_FIELDS = ['context', 'metrics', 'inferred_state', 'timestamp'];
 const ALLOWED_CONTEXT_FIELDS = ['domain', 'type'];
-const ALLOWED_METRICS_FIELDS = ['dwell_time_ms', 'scroll_velocity', 'mouse_jitter', 'tab_switches'];
+const ALLOWED_METRICS_FIELDS = ['dwell_time_ms', 'scroll_velocity', 'mouse_jitter', 'tab_switches', 're_read_cycles'];
 
 // ─── Factory ───────────────────────────────────────────────────────────────────
 
@@ -20,7 +20,7 @@ const ALLOWED_METRICS_FIELDS = ['dwell_time_ms', 'scroll_velocity', 'mouse_jitte
  * Creates a validated behavioral packet.
  *
  * @param {{ domain: string, type: string }} context - Platform context
- * @param {{ dwell_time_ms: number, scroll_velocity: number, mouse_jitter: number, tab_switches: number }} metrics
+ * @param {{ dwell_time_ms: number, scroll_velocity: number, mouse_jitter: number, tab_switches: number, re_read_cycles: number }} metrics
  * @returns {object} A well-formed behavioral packet
  * @throws {Error} If context or metrics are invalid
  */
@@ -57,6 +57,7 @@ export function createPacket(context, metrics) {
       scroll_velocity: metrics.scroll_velocity,
       mouse_jitter: metrics.mouse_jitter,
       tab_switches: metrics.tab_switches,
+      re_read_cycles: metrics.re_read_cycles,
     },
     inferred_state: LearningState.PENDING_LOCAL_AI,
     timestamp: Date.now(),
@@ -95,6 +96,11 @@ export function validateMetrics(metrics) {
 
   // tab_switches: non-negative integer
   if (metrics.tab_switches < 0 || !Number.isInteger(metrics.tab_switches)) {
+    return false;
+  }
+
+  // re_read_cycles: non-negative integer
+  if (metrics.re_read_cycles < 0 || !Number.isInteger(metrics.re_read_cycles)) {
     return false;
   }
 

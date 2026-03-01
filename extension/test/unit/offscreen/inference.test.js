@@ -34,6 +34,7 @@ describe('runInference()', () => {
       scroll_velocity: 0,
       mouse_jitter: 0.45,
       tab_switches: 0,
+      re_read_cycles: 0,
     };
 
     const result = await runInference(session, metrics);
@@ -60,6 +61,7 @@ describe('runInference()', () => {
       scroll_velocity: 100,
       mouse_jitter: 0.2,
       tab_switches: 0,
+      re_read_cycles: 0,
     });
 
     expect(fetchSpy).not.toHaveBeenCalled();

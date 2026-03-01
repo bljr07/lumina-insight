@@ -9,6 +9,7 @@
 import { detectPlatform, detectQuizElements } from './platforms.js';
 import { DwellTracker, ScrollTracker, MouseJitterTracker, TabSwitchTracker, ReReadDetector } from './sensors.js';
 import { throttle } from './throttle.js';
+import { initReReadObserver, disconnectObserver } from './observer.js';
 import { createPacket, sanitizePacket } from '@shared/packet.js';
 import { MessageType, SensorConfig } from '@shared/constants.js';
 
@@ -30,6 +31,7 @@ function emitPacket() {
       scroll_velocity: _sensors.scroll.getVelocity(),
       mouse_jitter: _sensors.jitter.getJitter(),
       tab_switches: _sensors.tabSwitch.getCount(),
+      re_read_cycles: _sensors.reRead.getCycles(),
     };
 
     const packet = createPacket(_platform, metrics);
@@ -97,8 +99,18 @@ export function initContentScript() {
 
   // Detect quiz elements on the page
   const quizElements = detectQuizElements(document, _platform.domain);
+  
+  let targetElements = [];
   if (quizElements.length > 0) {
-    console.debug(`[Lumina] Detected ${quizElements.length} interactive elements on ${_platform.domain}`);
+    targetElements = quizElements;
+  } else {
+    // Fallback: track standard reading paragraphs
+    targetElements = Array.from(document.querySelectorAll('p, article, li'));
+  }
+
+  if (targetElements.length > 0) {
+    initReReadObserver(_sensors.reRead, targetElements);
+    console.debug(`[Lumina] Observing ${targetElements.length} elements for re-read tracking on ${_platform.domain}`);
   }
 
   console.debug(`[Lumina] Content script initialized — platform: ${_platform.domain} (${_platform.type})`);
@@ -121,6 +133,8 @@ export function stopContentScript() {
     _sensors.dwell.stop();
     _sensors = null;
   }
+
+  disconnectObserver();
 
   _platform = null;
   _emitThrottled = null;
