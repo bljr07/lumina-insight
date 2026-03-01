@@ -37,3 +37,10 @@ The frontend proxies `/api/*` calls to `http://localhost:5000`.
 - Web app tests: `cd web_app && npm test`
 - Web app production build: `cd web_app && npm run build`
 - CI workflow enforces `npm ci && npm run build` for `web_app`.
+
+## Configuration for RabbitMQ Broker
+
+- Start the broker: `docker-compose up -d`
+- Exchange: `lumina.events`
+- Queue: `Lumina_Event`
+    - Bind (Routing Key): `behavior.packet`
