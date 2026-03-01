@@ -163,11 +163,30 @@ var LuminaBackground = (function (exports) {
           session.packetCount = (session.packetCount || 0) + 1;
           session.latestPacket = message.payload;
 
-          // Run rule-based classification on the metrics
+          // Run rule-based classification on the metrics (Fallback)
           if (message.payload && message.payload.metrics) {
             try {
-              session.lastState = classifyState(message.payload.metrics);
-              console.debug('[Lumina SW] Classified state:', session.lastState);
+              let nextState = classifyState(message.payload.metrics);
+
+              // Phase 2: Attempt to utilize the Offscreen ONNX AI Engine
+              try {
+                const aiResult = await chrome.runtime.sendMessage({
+                  type: MessageType.INFERENCE_REQUEST,
+                  payload: message.payload
+                });
+
+                if (aiResult && aiResult.state && aiResult.state !== 'UNKNOWN') {
+                  nextState = aiResult.state;
+                  console.debug('[Lumina SW] State classified via ONNX Engine:', nextState);
+                } else {
+                  console.debug('[Lumina SW] State classified via Rule Fallback:', nextState);
+                }
+              } catch (onnxErr) {
+                // If offscreen doesn't respond, we fall back to the rule-based engine silently
+                console.debug('[Lumina SW] State classified via Rule Fallback (ONNX failed or loading):', nextState);
+              }
+
+              session.lastState = nextState;
 
               // Broadcast the new state to any open side panels or popups
               chrome.runtime.sendMessage({
@@ -234,6 +253,38 @@ var LuminaBackground = (function (exports) {
    * 3. Manages the offscreen document lifecycle for AI inference
    */
 
+  // ─── Offscreen Document Management ───────────────────────────────────────────────
+
+  const OFFSCREEN_DOCUMENT_PATH = 'offscreen/offscreen.html';
+
+  /**
+   * Creates the offscreen document if it doesn't already exist.
+   * Required for running DOM-bound engines like onnxruntime-web.
+   */
+  async function setupOffscreenDocument(path) {
+    const existingContexts = await chrome.runtime.getContexts({
+      contextTypes: ['OFFSCREEN_DOCUMENT'],
+      documentUrls: [chrome.runtime.getURL(path)]
+    });
+
+    if (existingContexts.length > 0) {
+      return; // Already exists
+    }
+
+    try {
+      await chrome.offscreen.createDocument({
+        url: path,
+        reasons: ['WORKERS'], // Appropriate for ML / background calculation
+        justification: 'Lumina Insight AI requires DOM access for ONNX WebAssembly execution.'
+      });
+      console.debug(`[Lumina SW] Offscreen document created at ${path}`);
+    } catch (err) {
+      if (!err.message.includes('Only a single offscreen document may be created')) {
+        console.error('[Lumina SW] Failed to create offscreen document:', err);
+      }
+    }
+  }
+
   // ─── Initialization ────────────────────────────────────────────────────────────
 
   /**
@@ -252,7 +303,13 @@ var LuminaBackground = (function (exports) {
       } else if (details.reason === 'update') {
         console.debug('[Lumina SW] Extension updated');
       }
+
+      // Bootstrap the Offscreen document on load
+      setupOffscreenDocument(OFFSCREEN_DOCUMENT_PATH);
     });
+
+    // Also explicitly verify offscreen document on normal browser restarts
+    setupOffscreenDocument(OFFSCREEN_DOCUMENT_PATH);
 
     // Start Federated Learning Sync Loop
     startFederatedLoop(async () => {

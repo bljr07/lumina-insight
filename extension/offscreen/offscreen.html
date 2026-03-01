@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Lumina Insight AI Engine (Offscreen)</title>
+    <!-- We load the ONNX web runtime via unpkg for MVP testing -->
+    <script src="https://unpkg.com/onnxruntime-web/dist/ort.min.js"></script>
+</head>
+<body>
+    <!-- 
+      This document runs invisibly in the background. It exists solely to
+      provide DOM access (required by ONNX web) without the 30-second
+      memory limits of a Manifest V3 Service Worker.
+    -->
+    <script src="offscreen.js"></script>
+</body>
+</html>
