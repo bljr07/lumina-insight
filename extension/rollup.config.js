@@ -57,4 +57,15 @@ export default [
     },
     plugins,
   },
+  // Offscreen Document bundle (hosts ONNX + LLM inference)
+  {
+    input: 'src/offscreen/main.js',
+    output: {
+      file: 'offscreen/offscreen.js',
+      format: 'iife',
+      name: 'LuminaOffscreen',
+      inlineDynamicImports: true, // Bundle @xenova/transformers inline (no code splitting)
+    },
+    plugins,
+  },
 ];

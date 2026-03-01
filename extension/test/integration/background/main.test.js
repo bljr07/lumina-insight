@@ -42,8 +42,8 @@ describe('initServiceWorker()', () => {
     const sendResponse = vi.fn();
     handler(message, {}, sendResponse);
 
-    // Wait for async handler
-    await new Promise((r) => setTimeout(r, 50));
+    // Wait for async handler (includes 200ms offscreen creation delay)
+    await new Promise((r) => setTimeout(r, 500));
 
     expect(sendResponse).toHaveBeenCalledWith({ received: true });
   });

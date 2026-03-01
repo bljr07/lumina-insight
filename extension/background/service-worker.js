@@ -85,6 +85,72 @@ var LuminaBackground = (function (exports) {
   }
 
   /**
+   * Nudge Logic — Translates raw LearningState into user-friendly messages
+   *
+   * This pure function powers the Side Panel content.
+   */
+
+  /**
+   * Maps an inferred learning state to a UI nudge object.
+   *
+   * @param {string} state - The LearningState enum value
+   * @returns {{ title: string, message: string, type: string }} Nudge data
+   */
+  function mapStateToNudge(state) {
+    switch (state) {
+      case LearningState.STRUGGLING:
+        return {
+          type: 'struggling',
+          title: 'Take a Breath',
+          message: "It looks like you might be stuck. Let's break this problem down into smaller steps.",
+        };
+      
+      case LearningState.STALLED:
+        return {
+          type: 'stalled',
+          title: 'Need a Hint?',
+          message: "You've been on this for a while. Try reviewing the previous section for clues.",
+        };
+
+      case LearningState.FOCUSED:
+        return {
+          type: 'focused',
+          title: 'On Fire!',
+          message: "You're doing great! Keep up the momentum.",
+        };
+
+      case LearningState.DEEP_READING:
+        return {
+          type: 'deep-reading',
+          title: 'Deep Focus',
+          message: 'Great focus on the reading material. Take notes if you find anything complex!',
+        };
+
+      case LearningState.RE_READING:
+        return {
+          type: 're-reading',
+          title: 'Reviewing',
+          message: 'Connecting the dots is great. Re-reading helps solidify complex concepts.',
+        };
+
+      case LearningState.PENDING_LOCAL_AI:
+        return {
+          type: 'pending',
+          title: 'Analyzing...',
+          message: 'Lumina is gathering insights on your learning patterns.',
+        };
+
+      default:
+        // Includes null/undefined and unrecognized states
+        return {
+          type: 'idle',
+          title: 'Idle',
+          message: 'Browse to a supported learning platform to start receiving insights.',
+        };
+    }
+  }
+
+  /**
    * State Classifier — Rule-based learning state classification
    *
    * Maps behavioral metrics to learning state enums. This serves as both
@@ -234,6 +300,10 @@ var LuminaBackground = (function (exports) {
         reasons: OFFSCREEN_REASONS,
         justification: OFFSCREEN_JUSTIFICATION,
       });
+
+      // Wait for the offscreen document's script to load and register listeners
+      await new Promise((resolve) => setTimeout(resolve, 200));
+      console.log('[Lumina SW] Offscreen document created and ready');
     } catch (err) {
       console.error('[Lumina SW] Failed to create offscreen document:', err);
     }
@@ -259,6 +329,22 @@ var LuminaBackground = (function (exports) {
    * Routes messages from Content Scripts, Popup, and Offscreen Document
    * to the appropriate handlers.
    */
+
+  /** Send a message to the offscreen doc with a timeout */
+  function sendToOffscreenWithTimeout(msg, timeoutMs = 10000) {
+    return new Promise((resolve, reject) => {
+      const timer = setTimeout(() => reject(new Error('Offscreen response timed out')), timeoutMs);
+      chrome.runtime.sendMessage(msg)
+        .then((response) => {
+          clearTimeout(timer);
+          resolve(response);
+        })
+        .catch((err) => {
+          clearTimeout(timer);
+          reject(err);
+        });
+    });
+  }
 
   /**
    * Handle an incoming runtime message.
@@ -308,26 +394,45 @@ var LuminaBackground = (function (exports) {
               const contentChanged = currentContent !== session.lastPromptedContent;
 
               if (stateChanged || contentChanged) {
-                // Ask Offscreen Document to run LLM logic
-                console.log(`[Lumina SW] 📤 Requesting Generative Nudge for state: ${session.lastState}`);
-                console.log(`[Lumina SW] 📎 Transient content extracted: "${currentContent || 'None'}"`);
-                await ensureOffscreen();
-                const generateResponse = await chrome.runtime.sendMessage({
-                  type: MessageType.GENERATE_NUDGE,
-                  payload: {
-                    state: session.lastState,
-                    platform: message.payload.context.type,
-                    transient_content: currentContent
-                  }
-                }).catch(() => null);
+                console.log(`[Lumina SW] 📤 Generating Nudge for state: ${session.lastState}`);
+                console.log(`[Lumina SW] 📎 Transient content: "${(currentContent || 'None').substring(0, 60)}"`);
 
-                if (generateResponse && generateResponse.nudge) {
-                  session.lastNudge = generateResponse.nudge;
-                } else {
-                  session.lastNudge = null;
+                // Ensure offscreen doc exists (creates if needed, waits for listener)
+                await ensureOffscreen();
+
+                try {
+                  // Send to offscreen doc for LLM-powered nudge generation
+                  const generateResponse = await sendToOffscreenWithTimeout({
+                    type: MessageType.GENERATE_NUDGE,
+                    payload: {
+                      state: session.lastState,
+                      platform: message.payload.context.type,
+                      transient_content: currentContent
+                    }
+                  });
+
+                  if (generateResponse && generateResponse.nudge) {
+                    session.lastNudge = generateResponse.nudge;
+                    console.log('[Lumina SW] ✅ LLM Nudge received:', session.lastNudge.message?.substring(0, 60));
+                  } else if (generateResponse && generateResponse.error) {
+                    console.warn('[Lumina SW] Offscreen error:', generateResponse.error);
+                    // Fallback to static nudge
+                    const staticNudge = mapStateToNudge(session.lastState);
+                    session.lastNudge = (staticNudge && staticNudge.type !== 'idle' && staticNudge.type !== 'pending')
+                      ? { ...staticNudge, is_dynamic: false }
+                      : null;
+                  } else {
+                    session.lastNudge = null;
+                  }
+                } catch (nudgeErr) {
+                  console.warn('[Lumina SW] Nudge generation failed, using static fallback:', nudgeErr.message);
+                  const staticNudge = mapStateToNudge(session.lastState);
+                  session.lastNudge = (staticNudge && staticNudge.type !== 'idle' && staticNudge.type !== 'pending')
+                    ? { ...staticNudge, is_dynamic: false }
+                    : null;
                 }
 
-                // Update cache to prevent redundant LLM calls
+                // Update cache to prevent redundant calls
                 session.lastPromptedState = session.lastState;
                 session.lastPromptedContent = currentContent;
               } else {
