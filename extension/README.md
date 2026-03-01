@@ -65,3 +65,33 @@ Lumina Insight operates completely on-device.
 - **No URLs or page content are recorded.** Only high-level domains (e.g., `kahoot.it`).
 - **Data stays on the machine.** Inference uses ONNX Web Runtime.
 - **Federated Learning is anonymous.** Only aggregated model weights + a random session hash are synced to the cloud, and only when the browser is entirely idle.
+
+## RabbitMQ Web-STOMP Credentials (.env)
+
+The extension queue publisher reads broker credentials at build time.
+
+You can set values in:
+1. `extension/.env`
+2. `extension/.env.local` (overrides `.env` when both exist)
+
+Required keys:
+```env
+RABBITMQ_WS_URL=wss://your-broker-host/ws
+RABBITMQ_WS_LOGIN=your_user
+RABBITMQ_WS_PASSCODE=your_password
+```
+
+Optional keys:
+```env
+RABBITMQ_EXCHANGE=lumina.events
+RABBITMQ_ROUTING_KEY=behavior.packet
+```
+
+After updating credentials, rebuild:
+```bash
+npm run build
+```
+
+Notes:
+1. If required keys are missing, queue publishing is disabled.
+2. Credentials are injected into the built bundle, so rebuild after any credential change.
