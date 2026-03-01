@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Play, Pause, RotateCcw, Volume2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { saveBreakLog } from "@/lib/supabase-service";
 import {
     Dialog,
     DialogContent,
@@ -170,6 +171,12 @@ export const BreakTimer = ({ open, onClose }: BreakTimerProps) => {
                         setDone(true);
                         playRingtone(ringtone);
                         setEncouragement(ENCOURAGEMENTS[Math.floor(Math.random() * ENCOURAGEMENTS.length)]);
+                        // Save to Supabase
+                        saveBreakLog({
+                            durationMinutes: selectedMinutes || 5,
+                            ringtone,
+                            completed: true,
+                        });
                         return 0;
                     }
                     return prev - 1;
@@ -365,8 +372,8 @@ export const BreakTimer = ({ open, onClose }: BreakTimerProps) => {
                                                 <button key={tone.id}
                                                     onClick={() => { setRingtone(tone.id); previewRingtone(tone.id); }}
                                                     className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${ringtone === tone.id
-                                                            ? "bg-primary/10 text-primary border border-primary/20"
-                                                            : "bg-muted/50 text-muted-foreground hover:bg-muted border border-transparent"
+                                                        ? "bg-primary/10 text-primary border border-primary/20"
+                                                        : "bg-muted/50 text-muted-foreground hover:bg-muted border border-transparent"
                                                         }`}>
                                                     {tone.label}
                                                 </button>

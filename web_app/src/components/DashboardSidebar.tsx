@@ -1,8 +1,10 @@
 import { useState, useEffect } from "react";
-import { Brain, LayoutDashboard, Ghost, Radar, Bell, TrendingUp, Settings, Sun, Moon, Menu, X, HelpCircle } from "lucide-react";
+import { Brain, LayoutDashboard, Ghost, Radar, Bell, TrendingUp, Settings, Sun, Moon, Menu, X, HelpCircle, LogOut } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
 import { FeatureGuide } from "@/components/FeatureGuide";
+import { useAuth } from "@/lib/auth-context";
+import { upsertProfile } from "@/lib/supabase-service";
 import {
   Dialog,
   DialogContent,
@@ -117,7 +119,20 @@ export const DashboardSidebar = () => {
     localStorage.setItem("lumina-user-year", tempYear);
     // Notify greeting and other consumers
     window.dispatchEvent(new Event("lumina-profile-updated"));
+    // Sync to Supabase
+    upsertProfile({
+      name: tempName,
+      education: tempEducation,
+      year: parseInt(tempYear) || 2,
+      course: tempCourse,
+    });
     setSettingsOpen(false);
+  };
+
+  const { signOut } = useAuth();
+  const handleSignOut = async () => {
+    await signOut();
+    window.location.href = "/auth";
   };
 
   const initials = userName.split(" ").map((w) => w[0]).join("").toUpperCase().slice(0, 2);
@@ -188,6 +203,13 @@ export const DashboardSidebar = () => {
         >
           <Settings className="w-4 h-4" />
           Settings
+        </button>
+        <button
+          onClick={handleSignOut}
+          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-destructive/70 hover:bg-destructive/10 hover:text-destructive transition-colors"
+        >
+          <LogOut className="w-4 h-4" />
+          Sign Out
         </button>
         <div className="mt-2 px-3">
           <div className="flex items-center gap-3">

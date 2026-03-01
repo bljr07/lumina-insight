@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { upsertProfile } from "@/lib/supabase-service";
 import { motion, AnimatePresence } from "framer-motion";
 import { Brain, ArrowRight, Sparkles, BookOpen, Rocket } from "lucide-react";
 
@@ -66,13 +67,20 @@ export const OnboardingModal = ({ open, onComplete }: OnboardingModalProps) => {
 
     const handleNext = () => {
         if (isFormStep && name.trim()) {
-            // Save profile
+            // Save profile to localStorage
             localStorage.setItem("lumina-user-name", name.trim());
             localStorage.setItem("lumina-user-education", education);
             localStorage.setItem("lumina-user-year", year);
             if (course.trim()) localStorage.setItem("lumina-user-course", course.trim());
             // Notify other components immediately
             window.dispatchEvent(new Event("lumina-profile-updated"));
+            // Save to Supabase
+            upsertProfile({
+                name: name.trim(),
+                education,
+                year: parseInt(year) || 2,
+                course: course.trim(),
+            });
         }
         if (isLast) {
             onComplete();

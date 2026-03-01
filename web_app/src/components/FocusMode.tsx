@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Eye, X, Clock } from "lucide-react";
+import { saveFocusSession } from "@/lib/supabase-service";
 
 interface FocusModeProps {
     active: boolean;
@@ -9,6 +10,13 @@ interface FocusModeProps {
 
 export const FocusMode = ({ active, onExit }: FocusModeProps) => {
     const [elapsed, setElapsed] = useState(0);
+
+    const handleExit = useCallback(() => {
+        if (elapsed > 5) {
+            saveFocusSession(elapsed);
+        }
+        onExit();
+    }, [elapsed, onExit]);
 
     useEffect(() => {
         if (!active) {
@@ -22,9 +30,9 @@ export const FocusMode = ({ active, onExit }: FocusModeProps) => {
     // Esc to exit
     const handleKeyDown = useCallback(
         (e: KeyboardEvent) => {
-            if (e.key === "Escape" && active) onExit();
+            if (e.key === "Escape" && active) handleExit();
         },
-        [active, onExit]
+        [active, handleExit]
     );
 
     useEffect(() => {
@@ -62,7 +70,7 @@ export const FocusMode = ({ active, onExit }: FocusModeProps) => {
                             {String(mins).padStart(2, "0")}:{String(secs).padStart(2, "0")}
                         </span>
                         <button
-                            onClick={onExit}
+                            onClick={handleExit}
                             className="ml-2 w-6 h-6 rounded-full bg-muted flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
                         >
                             <X className="w-3 h-3" />
