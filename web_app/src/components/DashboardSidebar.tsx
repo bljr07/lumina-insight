@@ -1,16 +1,27 @@
+import { useState } from "react";
 import { Brain, LayoutDashboard, Ghost, Radar, Bell, TrendingUp, Settings } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const navItems = [
-  { icon: LayoutDashboard, label: "Pulse Dashboard", active: true },
-  { icon: Brain, label: "Knowledge Graph" },
-  { icon: Ghost, label: "Ghost Mode" },
-  { icon: Radar, label: "Skill Radar" },
-  { icon: Bell, label: "Nudges" },
-  { icon: TrendingUp, label: "Growth" },
+  { icon: LayoutDashboard, label: "Pulse Dashboard", sectionId: "pulse-dashboard" },
+  { icon: Brain, label: "Knowledge Graph", sectionId: "knowledge-graph" },
+  { icon: Ghost, label: "Ghost Mode", sectionId: "ghost-mode" },
+  { icon: Radar, label: "Skill Radar", sectionId: "skill-radar" },
+  { icon: Bell, label: "Nudges", sectionId: "nudges" },
+  { icon: TrendingUp, label: "Growth", sectionId: "growth" },
 ];
 
 export const DashboardSidebar = () => {
+  const [activeItem, setActiveItem] = useState("Pulse Dashboard");
+
+  const handleNavClick = (label: string, sectionId: string) => {
+    setActiveItem(label);
+    const el = document.getElementById(sectionId);
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  };
+
   return (
     <aside className="fixed left-0 top-0 h-screen w-64 bg-sidebar border-r border-sidebar-border flex flex-col z-50">
       {/* Logo */}
@@ -31,9 +42,10 @@ export const DashboardSidebar = () => {
         {navItems.map((item) => (
           <button
             key={item.label}
+            onClick={() => handleNavClick(item.label, item.sectionId)}
             className={cn(
               "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200",
-              item.active
+              activeItem === item.label
                 ? "bg-primary/10 text-primary glow-border"
                 : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
             )}

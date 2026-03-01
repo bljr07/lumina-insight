@@ -1,5 +1,6 @@
 import { Ghost, TrendingDown, TrendingUp, Clock } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
+import { mockGhostMode } from "@/lib/mockData";
 
 interface GhostData {
   label: string;
@@ -15,16 +16,16 @@ interface TimelinePoint {
 }
 
 export const GhostMode = () => {
-  const { data, isLoading } = useQuery({
+  const { data } = useQuery({
     queryKey: ["ghost-mode"],
     queryFn: async () => {
       const res = await fetch("/api/ghost-mode");
       if (!res.ok) throw new Error("Failed to fetch ghost mode data");
       return res.json();
-    }
+    },
+    initialData: mockGhostMode,
+    retry: 1,
   });
-
-  if (isLoading) return <div className="h-64 animate-pulse bg-muted rounded-xl" />;
 
   const ghostData: GhostData[] = data?.ghostData || [];
   const timelinePoints: TimelinePoint[] = data?.timelinePoints || [];
