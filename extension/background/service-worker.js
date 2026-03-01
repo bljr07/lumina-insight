@@ -255,6 +255,51 @@ var LuminaBackground = (function (exports) {
     console.debug('[Lumina SW] Service Worker initialized');
   }
 
+  // ─── Data Ingestion Pipeline ───────────────────────────────────────────────────
+
+  const INGESTION_API_URL = 'http://localhost:5000/api/ingest';
+  const BATCH_INTERVAL_MS = 5000;
+
+  /**
+   * Periodically batches the latest tracking data from chrome.storage
+   * and POSTs it directly to the Flask ingestion backend.
+   */
+  async function syncBatchedData() {
+    try {
+      const session = await loadSession();
+      if (!session || !session.lastState) return;
+
+      const payload = {
+        event_type: 'interaction_update',
+        learning_state: session.lastState,
+        packet_count: session.packetCount,
+        ...session.latestPacket,
+        timestamp: new Date().toISOString()
+      };
+
+      const response = await fetch(INGESTION_API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      if (response.ok) {
+        // Upon success, optionally clear the latestPacket so we don't resend duplicates.
+        // session.latestPacket = null;
+        // await saveSession(session);
+      } else {
+        console.warn(`[Lumina SW] Ingestion failed with status ${response.status}`);
+      }
+    } catch (err) {
+      console.warn('[Lumina SW] Sync loop error (is Backend down?):', err.message);
+    }
+  }
+
+  // Run the batch syncer on an interval
+  if (typeof setInterval !== 'undefined') {
+      setInterval(syncBatchedData, BATCH_INTERVAL_MS);
+  }
+
   // ─── Auto-initialize (only in real Chrome, not during tests) ───────────────────
   const isTestEnv = typeof process !== 'undefined' && process.env && process.env.NODE_ENV === 'test';
   if (!isTestEnv && typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.onInstalled) {

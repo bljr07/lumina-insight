@@ -1,4 +1,4 @@
-from flask import Flask, jsonify
+from flask import Flask, jsonify, request
 from flask_cors import CORS
 from models import db, Stat, KnowledgeNode, KnowledgeEdge, HeatmapPoint, Skill, GhostData, TimelinePoint, Nudge
 import os
@@ -12,6 +12,41 @@ app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(basedir, 'ap
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db.init_app(app)
+
+import pika
+import json
+
+# Initialize RabbitMQ Connection (assuming defaults: localhost:5672)
+# We instantiate this lazily or per-request in a production app, but for MVP we'll use a basic function
+def get_rabbitmq_channel():
+    connection = pika.BlockingConnection(pika.ConnectionParameters('localhost'))
+    channel = connection.channel()
+    channel.queue_declare(queue='lumina_data_queue', durable=True)
+    return connection, channel
+
+@app.route('/api/ingest', methods=['POST'])
+def ingest_data():
+    try:
+        data = request.json
+        if not data:
+            return jsonify({'error': 'No JSON payload provided'}), 400
+        
+        # Publish to RabbitMQ
+        connection, channel = get_rabbitmq_channel()
+        channel.basic_publish(
+            exchange='',
+            routing_key='lumina_data_queue',
+            body=json.dumps(data),
+            properties=pika.BasicProperties(
+                delivery_mode=pika.spec.PERSISTENT_DELIVERY_MODE
+            )
+        )
+        connection.close()
+        
+        return jsonify({'status': 'queued'}), 202
+    except Exception as e:
+        app.logger.error(f"Ingestion Error: {e}")
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/api/stats', methods=['GET'])
 def get_stats():
