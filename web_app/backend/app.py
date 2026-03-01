@@ -1,6 +1,6 @@
 from flask import Flask, jsonify, request
 from flask_cors import CORS
-from models import db, Stat, KnowledgeNode, KnowledgeEdge, HeatmapPoint, Skill, GhostData, TimelinePoint, Nudge, FederatedWeight, GlobalModel
+from models import db, Stat, KnowledgeNode, KnowledgeEdge, HeatmapPoint, Skill, GhostData, TimelinePoint, Nudge, FederatedWeight, GlobalModel, Profile, StudySession, TopicMastery, QuizResult, BreakLog, FocusSession, Milestone, DailyActivity
 import os
 
 app = Flask(__name__)
@@ -239,6 +239,107 @@ def get_ghost_mode():
 def get_nudges():
     nudges = Nudge.query.all()
     return jsonify([nudge.to_dict() for nudge in nudges])
+
+# --- New Endpoints based on SQLite Models ---
+
+@app.route('/api/profile', methods=['GET', 'POST'])
+def manage_profile():
+    client_id = request.headers.get('X-Client-ID') or (request.json and request.json.get('client_id'))
+    if not client_id:
+        return jsonify({'error': 'Missing client_id'}), 400
+
+    if request.method == 'GET':
+        profile = Profile.query.filter_by(user_id=client_id).first()
+        return jsonify(profile.to_dict() if profile else {})
+    elif request.method == 'POST':
+        data = request.json
+        profile = Profile.query.filter_by(user_id=client_id).first()
+        if not profile:
+            profile = Profile(user_id=client_id, name=data.get('name', ''), education=data.get('education', ''), year=data.get('year', 1), course=data.get('course', ''))
+            db.session.add(profile)
+        else:
+            profile.name = data.get('name', profile.name)
+            profile.education = data.get('education', profile.education)
+            profile.year = data.get('year', profile.year)
+            profile.course = data.get('course', profile.course)
+        db.session.commit()
+        return jsonify({'status': 'success', 'profile': profile.to_dict()})
+
+@app.route('/api/study/start', methods=['POST'])
+def start_study():
+    data = request.json
+    client_id = data.get('client_id')
+    if not client_id:
+        return jsonify({'error': 'Missing client_id'}), 400
+    
+    new_session = StudySession(user_id=client_id)
+    db.session.add(new_session)
+    db.session.commit()
+    return jsonify({'status': 'started', 'session_id': new_session.id})
+
+@app.route('/api/study/end', methods=['POST'])
+def end_study():
+    data = request.json
+    session_id = data.get('session_id')
+    if not session_id:
+        return jsonify({'error': 'Missing session_id'}), 400
+        
+    session = StudySession.query.get(session_id)
+    if not session:
+        return jsonify({'error': 'Session not found'}), 404
+        
+    session.ended_at = db.func.now()
+    session.duration_minutes = data.get('duration_minutes', 0)
+    session.intensity = data.get('intensity', 0)
+    session.focus_score = data.get('focus_score', 0)
+    session.distractions = data.get('distractions', 0)
+    session.topics = json.dumps(data.get('topics', []))
+    db.session.commit()
+    return jsonify({'status': 'ended', 'session_id': session.id})
+
+@app.route('/api/mastery', methods=['GET', 'POST'])
+def manage_mastery():
+    client_id = request.headers.get('X-Client-ID') or (request.json and request.json.get('client_id'))
+    if not client_id:
+        return jsonify({'error': 'Missing client_id'}), 400
+
+    if request.method == 'POST':
+        data = request.json
+        topic_data = TopicMastery.query.filter_by(user_id=client_id, topic=data.get('topic')).first()
+        if not topic_data:
+            topic_data = TopicMastery(user_id=client_id, topic=data.get('topic'), time_spent_hours=0.0)
+            db.session.add(topic_data)
+        
+        topic_data.time_spent_hours += data.get('time_spent', 0.0)
+        topic_data.mastery = data.get('new_mastery_score', topic_data.mastery)
+        topic_data.last_studied_at = db.func.now()
+        db.session.commit()
+        return jsonify({'status': 'success', 'mastery': topic_data.to_dict()})
+    else:
+        topics = TopicMastery.query.filter_by(user_id=client_id).all()
+        return jsonify([t.to_dict() for t in topics])
+
+@app.route('/api/quiz', methods=['POST'])
+def log_quiz():
+    data = request.json
+    client_id = data.get('client_id')
+    if not client_id:
+         return jsonify({'error': 'Missing client_id'}), 400
+    
+    total = data.get('total_cards', 1)
+    correct = data.get('correct', 0)
+    score = correct / total if total > 0 else 0
+    
+    quiz = QuizResult(
+        user_id=client_id, 
+        total_cards=total, 
+        correct=correct,
+        score=score,
+        card_details=json.dumps(data.get('card_details', []))
+    )
+    db.session.add(quiz)
+    db.session.commit()
+    return jsonify({'status': 'success', 'quiz_id': quiz.id})
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
