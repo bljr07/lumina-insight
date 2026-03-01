@@ -1,34 +1,52 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
 
+/* ═══════════════════════════════════════════════════════════════
+   Lumina Insight — Design Tokens (Tailwind CSS v4)
+   
+   In v4, theme extensions go in @theme blocks, not config files.
+   ═══════════════════════════════════════════════════════════════ */
+
+@theme {
+  /* Brand palette — Teal */
+  --color-brand-50: #f0fdfa;
+  --color-brand-100: #ccfbf1;
+  --color-brand-500: #14b8a6;
+  --color-brand-900: #134e4a;
+
+  /* UI palette */
+  --color-ui-bg: #0f172a;
+  --color-ui-card: #1e293b;
+  --color-ui-text: #f8fafc;
+  --color-ui-muted: #94a3b8;
+
+  /* Font */
+  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+}
+
+/* ─── Body Background ───────────────────────────────────────── */
 body {
-  background-color: #0f172a;
-  /* Slate 900 */
+  background-color: var(--color-ui-bg);
   background-image:
     radial-gradient(at 0% 0%, hsla(170, 100%, 74%, 0.15) 0px, transparent 50%),
     radial-gradient(at 100% 100%, hsla(253, 16%, 7%, 1) 0px, transparent 50%);
   background-attachment: fixed;
 }
 
-/* Glassmorphic Panel Design */
+/* ─── Glassmorphic Panel ────────────────────────────────────── */
 .glass-panel {
   background: rgba(30, 41, 59, 0.6);
-  /* Slate 800 with opacity */
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 12px;
 }
 
+/* ─── Pulse Glow Animation ──────────────────────────────────── */
 @keyframes pulse-glow {
-
-  0%,
-  100% {
+  0%, 100% {
     opacity: 0.8;
     transform: scale(1);
   }
-
   50% {
     opacity: 1;
     transform: scale(1.05);
@@ -39,6 +57,7 @@ body {
   animation: pulse-glow 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 
+/* ─── Scrollbar ─────────────────────────────────────────────── */
 ::-webkit-scrollbar {
   width: 6px;
 }
