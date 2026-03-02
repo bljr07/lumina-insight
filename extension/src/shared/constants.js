@@ -19,6 +19,7 @@ export const PlatformType = Object.freeze({
   QUIZ: 'QUIZ',
   POLL: 'POLL',
   LMS_READING: 'LMS_READING',
+  PHYSICS_SIM: 'PHYSICS_SIM',
   UNKNOWN: 'UNKNOWN',
 });
 

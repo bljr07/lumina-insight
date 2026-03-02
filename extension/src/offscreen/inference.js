@@ -44,8 +44,34 @@ export async function createInferenceSession() {
       return {
         provider,
         modelSession,
-        // Keep classifier output stable until input/output tensor mapping is finalized.
-        run: async (metrics) => classifyState(metrics),
+        // Run against ONNX session or fallback to rules if input shape is wrong
+        run: async (metrics) => {
+          try {
+            // Convert metrics to Float32Array matching [1, 5]
+            const inputData = Float32Array.from([
+              metrics.dwell_time_ms,
+              metrics.scroll_velocity,
+              metrics.mouse_jitter,
+              metrics.tab_switches,
+              metrics.re_read_cycles
+            ]);
+            
+            const tensor = new ort.Tensor('float32', inputData, [1, 5]);
+            const results = await modelSession.run({ input: tensor });
+            const output = results.output.data;
+            
+            // Map highest output score to LearningState
+            const states = ['struggling', 'stalled', 'focused', 'deep-reading', 're-reading', 'idle'];
+            let maxIdx = 0;
+            for (let i = 1; i < output.length; i++) {
+              if (output[i] > output[maxIdx]) maxIdx = i;
+            }
+            return states[maxIdx] || 'idle';
+          } catch (err) {
+            console.warn('[Lumina Offscreen] ONNX inference failed, falling back to rules:', err);
+            return classifyState(metrics);
+          }
+        },
       };
     } catch (err) {
       console.warn(

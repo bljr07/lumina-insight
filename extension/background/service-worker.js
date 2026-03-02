@@ -17,6 +17,15 @@ var LuminaBackground = (function (exports) {
     RE_READING: 'RE_READING',
   });
 
+  /** Platform context types */
+  const PlatformType = Object.freeze({
+    QUIZ: 'QUIZ',
+    POLL: 'POLL',
+    LMS_READING: 'LMS_READING',
+    PHYSICS_SIM: 'PHYSICS_SIM',
+    UNKNOWN: 'UNKNOWN',
+  });
+
   /** Message types for chrome.runtime.sendMessage routing */
   const MessageType = Object.freeze({
     BEHAVIORAL_PACKET: 'BEHAVIORAL_PACKET',
@@ -97,18 +106,33 @@ var LuminaBackground = (function (exports) {
    * Maps an inferred learning state to a UI nudge object.
    *
    * @param {string} state - The LearningState enum value
+   * @param {string} platformType - The PlatformType enum value
    * @returns {{ title: string, message: string, type: string }} Nudge data
    */
-  function mapStateToNudge(state) {
+  function mapStateToNudge(state, platformType = null) {
     switch (state) {
       case LearningState.STRUGGLING:
+        if (platformType === PlatformType.QUIZ) {
+          return {
+            type: 'struggling',
+            title: 'Take a Breath',
+            message: "80% of students find this question difficult. Don't stress!",
+          };
+        }
         return {
           type: 'struggling',
           title: 'Take a Breath',
           message: "It looks like you might be stuck. Let's break this problem down into smaller steps.",
         };
-      
+
       case LearningState.STALLED:
+        if (platformType === PlatformType.PHYSICS_SIM) {
+          return {
+            type: 'stalled',
+            title: 'Need a Hint?',
+            message: "You've been changing these variables a lot. Should we review the prerequisite formula?",
+          };
+        }
         return {
           type: 'stalled',
           title: 'Need a Hint?',
@@ -130,6 +154,13 @@ var LuminaBackground = (function (exports) {
         };
 
       case LearningState.RE_READING:
+        if (platformType === PlatformType.LMS_READING) {
+          return {
+            type: 're-reading',
+            title: 'Reviewing',
+            message: 'It looks like you are rereading this. Want me to generate a high-level synthesis of the key arguments?',
+          };
+        }
         return {
           type: 're-reading',
           title: 'Reviewing',
@@ -185,13 +216,43 @@ var LuminaBackground = (function (exports) {
    * @param {{ dwell_time_ms: number, scroll_velocity: number, mouse_jitter: number, tab_switches: number }} metrics
    * @returns {string} One of LearningState values
    */
-  function classifyState(metrics) {
+  function classifyState(metrics, platformType = null) {
     const { dwell_time_ms, mouse_jitter, tab_switches, re_read_cycles } = metrics;
+
+    // Domain Adapter: Physics Simulators (e.g. PhET)
+    // Physics sims often involve tweaking variables repeatedly without submitting.
+    // If time is high and jitter is low-medium but they haven't switched tabs,
+    // we consider them STALLED rather than DEEP_READING.
+    if (platformType === PlatformType.PHYSICS_SIM) {
+      if (dwell_time_ms >= THRESHOLDS.DWELL_HIGH) {
+        // High dwell time without completing the simulation
+        if (mouse_jitter >= THRESHOLDS.JITTER_HIGH) return LearningState.STRUGGLING;
+        return LearningState.STALLED; // They are stuck trying different variables without progress
+      }
+    }
+
+    // Domain Adapter: Canvas LMS Reading
+    // If reading a PDF or page and re-read cycles are high, it's specific.
+    if (platformType === PlatformType.LMS_READING) {
+      if (re_read_cycles && re_read_cycles >= THRESHOLDS.RE_READ_CYCLES_HIGH) {
+        return LearningState.RE_READING;
+      }
+    }
 
     // High tab switches → distracted / stalled
     if (tab_switches >= THRESHOLDS.TAB_SWITCH_HIGH) {
       return LearningState.STALLED;
     }
+
+    // Domain Adapter: Kahoot Quizzes
+    // Anxious Learner: Kahoot has a timer. High jitter + moderate dwell = Struggling (hesitation)
+    if (platformType === PlatformType.QUIZ) {
+      if (dwell_time_ms >= (THRESHOLDS.DWELL_HIGH * 0.5) && mouse_jitter >= THRESHOLDS.JITTER_HIGH) {
+        return LearningState.STRUGGLING; // Fast hesitation
+      }
+    }
+
+    // Generic Rules
 
     // High re-read cycles → re-reading
     if (re_read_cycles && re_read_cycles >= THRESHOLDS.RE_READ_CYCLES_HIGH) {
@@ -228,7 +289,7 @@ var LuminaBackground = (function (exports) {
 
   // ─── Allowed Fields (Allowlist for PII protection) ─────────────────────────────
 
-  const ALLOWED_PACKET_FIELDS = ['context', 'metrics', 'inferred_state', 'timestamp'];
+  const ALLOWED_PACKET_FIELDS = ['event_id', 'session_hash', 'context', 'metrics', 'inferred_state', 'timestamp'];
   const ALLOWED_CONTEXT_FIELDS = ['domain', 'type'];
   const ALLOWED_METRICS_FIELDS = ['dwell_time_ms', 'scroll_velocity', 'mouse_jitter', 'tab_switches', 're_read_cycles'];
 
@@ -3209,9 +3270,7 @@ var LuminaBackground = (function (exports) {
 
   const MODEL_VERSION = '0.1.0';
   const DEFAULT_SYNC_ENDPOINT = 'http://localhost:5000/api/federated/push';
-  const SYNC_INTERVAL_MS = 60_000;
   const WEIGHT_VECTOR_LENGTH = 10;
-  let syncTimer = null;
 
   // ─── Weight Update Generation ──────────────────────────────────────────────────
 
@@ -3269,11 +3328,15 @@ var LuminaBackground = (function (exports) {
     }
 
     try {
-      await fetch(endpoint, {
+      const response = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(update),
       });
+
+      if (!response.ok) {
+        return { synced: false, error: `HTTP error ${response.status}` };
+      }
 
       return { synced: true };
     } catch (err) {
@@ -3297,40 +3360,22 @@ var LuminaBackground = (function (exports) {
     return base.map((_, idx) => Number((packetSignal * (idx + 1) * 0.01).toFixed(4)));
   }
 
-  /**
-   * Start periodic federated sync.
-   *
-   * @param {() => Promise<object>} getSession
-   * @param {{ endpoint?: string, intervalMs?: number }} options
-   * @returns {NodeJS.Timeout | number}
-   */
-  function startFederatedSyncLoop(getSession, options = {}) {
+  async function performFederatedSync(getSession, options = {}) {
     const endpoint = options.endpoint || DEFAULT_SYNC_ENDPOINT;
-    const intervalMs = options.intervalMs || SYNC_INTERVAL_MS;
 
-    if (syncTimer) {
-      clearInterval(syncTimer);
-      syncTimer = null;
-    }
-
-    const tick = async () => {
-      try {
-        const session = await getSession();
-        const localWeights = buildLocalWeights(session);
-        const update = generateWeightUpdate(localWeights);
-        await syncWeights(update, endpoint, { checkIdle: true });
-      } catch (err) {
-        console.warn('[Lumina SW] Federated sync tick failed:', err?.message || err);
+    try {
+      const session = await getSession();
+      const localWeights = buildLocalWeights(session);
+      const update = generateWeightUpdate(localWeights);
+      const result = await syncWeights(update, endpoint, { checkIdle: true });
+      if (result.synced) {
+        console.debug('[Lumina SW] Federated sync successful');
+      } else {
+        console.debug('[Lumina SW] Federated sync skipped/failed:', result.reason || result.error);
       }
-    };
-
-    // Prime once on startup.
-    tick();
-    syncTimer = setInterval(tick, intervalMs);
-    if (syncTimer && typeof syncTimer.unref === 'function') {
-      syncTimer.unref();
+    } catch (err) {
+      console.warn('[Lumina SW] Federated sync failed:', err?.message || err);
     }
-    return syncTimer;
   }
 
   // ─── Helpers ───────────────────────────────────────────────────────────────────
@@ -3365,7 +3410,7 @@ var LuminaBackground = (function (exports) {
 
   // ---- Inject Node.js require polyfill for onnxruntime-web fallback ----
   if (typeof globalThis.require === 'undefined') {
-    globalThis.require = function() { return {}; };
+    globalThis.require = function () { return {}; };
   }
 
   // ─── Initialization ────────────────────────────────────────────────────────────
@@ -3379,8 +3424,16 @@ var LuminaBackground = (function (exports) {
     getQueuePublisher().init().catch((err) => {
       console.warn('[Lumina SW] Queue publisher init failed:', err.message);
     });
+
     if (!isTestEnv) {
-      startFederatedSyncLoop(loadSession);
+      // Register alarms for periodic federated sync (UAC: battery and offline efficient)
+      chrome.alarms.create('federated-sync', { periodInMinutes: 1 });
+
+      chrome.alarms.onAlarm.addListener((alarm) => {
+        if (alarm.name === 'federated-sync') {
+          performFederatedSync(loadSession);
+        }
+      });
     }
 
     // Handle extension lifecycle events

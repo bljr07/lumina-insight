@@ -10,7 +10,7 @@ import { LearningState } from './constants.js';
 
 // ─── Allowed Fields (Allowlist for PII protection) ─────────────────────────────
 
-const ALLOWED_PACKET_FIELDS = ['context', 'metrics', 'inferred_state', 'timestamp'];
+const ALLOWED_PACKET_FIELDS = ['event_id', 'session_hash', 'context', 'metrics', 'inferred_state', 'timestamp'];
 const ALLOWED_CONTEXT_FIELDS = ['domain', 'type'];
 const ALLOWED_METRICS_FIELDS = ['dwell_time_ms', 'scroll_velocity', 'mouse_jitter', 'tab_switches', 're_read_cycles'];
 
@@ -49,6 +49,8 @@ export function createPacket(context, metrics, transient_content = null) {
   }
 
   const packet = {
+    event_id: crypto.randomUUID(),
+    session_hash: 'session_' + Math.random().toString(36).substring(2, 10),
     context: {
       domain: context.domain,
       type: context.type,

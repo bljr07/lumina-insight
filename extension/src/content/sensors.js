@@ -4,7 +4,7 @@
  * Pure data-tracking classes that monitor learning behavior patterns.
  * No DOM injection — these just accumulate metrics from events.
  */
-import { SensorConfig } from '@shared/constants.js';
+import { SensorConfig, PlatformType } from '@shared/constants.js';
 
 // ─── DwellTracker ──────────────────────────────────────────────────────────────
 
@@ -100,8 +100,10 @@ export class ScrollTracker {
  * positions, normalized against SensorConfig.MOUSE_JITTER_NORMALIZATION_MAX.
  */
 export class MouseJitterTracker {
-  constructor() {
+  constructor(platformType = null) {
     this._positions = [];
+    // Increase sensitivity for Kahoot/Quizzes based on User Story C (Anxious Learner)
+    this._sensitivityMultiplier = (platformType === PlatformType.QUIZ) ? 1.5 : 1.0;
   }
 
   /**
@@ -125,14 +127,29 @@ export class MouseJitterTracker {
     }
 
     let totalDistance = 0;
+    let directionChanges = 0;
+
     for (let i = 1; i < this._positions.length; i++) {
       const dx = this._positions[i].x - this._positions[i - 1].x;
       const dy = this._positions[i].y - this._positions[i - 1].y;
       totalDistance += Math.sqrt(dx * dx + dy * dy);
+
+      if (i > 1) {
+        const prevDx = this._positions[i - 1].x - this._positions[i - 2].x;
+        const prevDy = this._positions[i - 1].y - this._positions[i - 2].y;
+        // Dot product to check if direction reversed
+        if ((dx * prevDx + dy * prevDy) < 0) {
+          directionChanges++;
+        }
+      }
     }
 
     const avgDistance = totalDistance / (this._positions.length - 1);
-    const normalized = avgDistance / SensorConfig.MOUSE_JITTER_NORMALIZATION_MAX;
+
+    // Anxious scrolling and hesitation often have many direction changes in a small area
+    const jitterFactor = avgDistance * (1 + (directionChanges * 0.2)) * this._sensitivityMultiplier;
+
+    const normalized = jitterFactor / SensorConfig.MOUSE_JITTER_NORMALIZATION_MAX;
 
     return Math.min(normalized, 1.0);
   }

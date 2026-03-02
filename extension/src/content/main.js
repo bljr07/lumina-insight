@@ -85,7 +85,7 @@ export function initContentScript() {
   _sensors = {
     dwell: new DwellTracker(),
     scroll: new ScrollTracker(),
-    jitter: new MouseJitterTracker(),
+    jitter: new MouseJitterTracker(_platform.type),
     tabSwitch: new TabSwitchTracker(),
     reRead: new ReReadDetector(),
   };
@@ -106,7 +106,7 @@ export function initContentScript() {
 
   // Detect quiz elements on the page
   const quizElements = detectQuizElements(document, _platform.domain);
-  
+
   let targetElements = [];
   if (quizElements.length > 0) {
     targetElements = quizElements;

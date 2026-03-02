@@ -22,6 +22,7 @@ var LuminaContent = (function (exports) {
     QUIZ: 'QUIZ',
     POLL: 'POLL',
     LMS_READING: 'LMS_READING',
+    PHYSICS_SIM: 'PHYSICS_SIM',
     UNKNOWN: 'UNKNOWN',
   });
 
@@ -66,6 +67,16 @@ var LuminaContent = (function (exports) {
    */
   const PLATFORM_REGISTRY = [
     {
+      name: 'phet.colorado.edu',
+      type: PlatformType.PHYSICS_SIM,
+      match: (hostname) =>
+        hostname === 'phet.colorado.edu' ||
+        hostname.endsWith('.phet.colorado.edu'),
+      // PhET HTML5 sims often use specific ARIA roles or nested canvases. 
+      // We target generic interactive slider inputs or generic buttons for tracking interactions
+      selectors: ['input[type="range"]', 'button', '.phet-slider-thumb', '[role="slider"]'],
+    },
+    {
       name: 'kahoot.it',
       type: PlatformType.QUIZ,
       match: (hostname) =>
@@ -79,7 +90,7 @@ var LuminaContent = (function (exports) {
       match: (hostname) =>
         hostname.endsWith('.instructure.com') ||
         hostname === 'canvas.instructure.com',
-      selectors: ['.quiz-question', '.question_text', '.answer'],
+      selectors: ['.quiz-question', '.question_text', '.answer', 'p'], // Added paragraphs for simpler text extraction
     },
     {
       name: 'wooclap',
@@ -126,7 +137,7 @@ var LuminaContent = (function (exports) {
     const baseDomain =
       parts.length >= 2 ? `${parts[parts.length - 2]}.${parts[parts.length - 1]}` : hostname;
 
-    return { domain: baseDomain, type: PlatformType.UNKNOWN };
+    return { domain: baseDomain || 'unknown', type: PlatformType.UNKNOWN };
   }
 
   // ─── Quiz Element Detection ────────────────────────────────────────────────────
@@ -261,8 +272,10 @@ var LuminaContent = (function (exports) {
    * positions, normalized against SensorConfig.MOUSE_JITTER_NORMALIZATION_MAX.
    */
   class MouseJitterTracker {
-    constructor() {
+    constructor(platformType = null) {
       this._positions = [];
+      // Increase sensitivity for Kahoot/Quizzes based on User Story C (Anxious Learner)
+      this._sensitivityMultiplier = (platformType === PlatformType.QUIZ) ? 1.5 : 1.0;
     }
 
     /**
@@ -286,14 +299,29 @@ var LuminaContent = (function (exports) {
       }
 
       let totalDistance = 0;
+      let directionChanges = 0;
+
       for (let i = 1; i < this._positions.length; i++) {
         const dx = this._positions[i].x - this._positions[i - 1].x;
         const dy = this._positions[i].y - this._positions[i - 1].y;
         totalDistance += Math.sqrt(dx * dx + dy * dy);
+
+        if (i > 1) {
+          const prevDx = this._positions[i - 1].x - this._positions[i - 2].x;
+          const prevDy = this._positions[i - 1].y - this._positions[i - 2].y;
+          // Dot product to check if direction reversed
+          if ((dx * prevDx + dy * prevDy) < 0) {
+            directionChanges++;
+          }
+        }
       }
 
       const avgDistance = totalDistance / (this._positions.length - 1);
-      const normalized = avgDistance / SensorConfig.MOUSE_JITTER_NORMALIZATION_MAX;
+
+      // Anxious scrolling and hesitation often have many direction changes in a small area
+      const jitterFactor = avgDistance * (1 + (directionChanges * 0.2)) * this._sensitivityMultiplier;
+
+      const normalized = jitterFactor / SensorConfig.MOUSE_JITTER_NORMALIZATION_MAX;
 
       return Math.min(normalized, 1.0);
     }
@@ -604,6 +632,8 @@ var LuminaContent = (function (exports) {
     }
 
     const packet = {
+      event_id: crypto.randomUUID(),
+      session_hash: 'session_' + Math.random().toString(36).substring(2, 10),
       context: {
         domain: context.domain,
         type: context.type,
@@ -750,7 +780,7 @@ var LuminaContent = (function (exports) {
     _sensors = {
       dwell: new DwellTracker(),
       scroll: new ScrollTracker(),
-      jitter: new MouseJitterTracker(),
+      jitter: new MouseJitterTracker(_platform.type),
       tabSwitch: new TabSwitchTracker(),
       reRead: new ReReadDetector(),
     };
@@ -771,7 +801,7 @@ var LuminaContent = (function (exports) {
 
     // Detect quiz elements on the page
     const quizElements = detectQuizElements(document, _platform.domain);
-    
+
     let targetElements = [];
     if (quizElements.length > 0) {
       targetElements = quizElements;

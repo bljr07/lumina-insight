@@ -68,11 +68,15 @@ export async function syncWeights(update, endpoint, options = {}) {
   }
 
   try {
-    await fetch(endpoint, {
+    const response = await fetch(endpoint, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(update),
     });
+
+    if (!response.ok) {
+      return { synced: false, error: `HTTP error ${response.status}` };
+    }
 
     return { synced: true };
   } catch (err) {
@@ -96,46 +100,21 @@ function buildLocalWeights(session = {}) {
   return base.map((_, idx) => Number((packetSignal * (idx + 1) * 0.01).toFixed(4)));
 }
 
-/**
- * Start periodic federated sync.
- *
- * @param {() => Promise<object>} getSession
- * @param {{ endpoint?: string, intervalMs?: number }} options
- * @returns {NodeJS.Timeout | number}
- */
-export function startFederatedSyncLoop(getSession, options = {}) {
+export async function performFederatedSync(getSession, options = {}) {
   const endpoint = options.endpoint || DEFAULT_SYNC_ENDPOINT;
-  const intervalMs = options.intervalMs || SYNC_INTERVAL_MS;
 
-  if (syncTimer) {
-    clearInterval(syncTimer);
-    syncTimer = null;
-  }
-
-  const tick = async () => {
-    try {
-      const session = await getSession();
-      const localWeights = buildLocalWeights(session);
-      const update = generateWeightUpdate(localWeights);
-      await syncWeights(update, endpoint, { checkIdle: true });
-    } catch (err) {
-      console.warn('[Lumina SW] Federated sync tick failed:', err?.message || err);
+  try {
+    const session = await getSession();
+    const localWeights = buildLocalWeights(session);
+    const update = generateWeightUpdate(localWeights);
+    const result = await syncWeights(update, endpoint, { checkIdle: true });
+    if (result.synced) {
+      console.debug('[Lumina SW] Federated sync successful');
+    } else {
+      console.debug('[Lumina SW] Federated sync skipped/failed:', result.reason || result.error);
     }
-  };
-
-  // Prime once on startup.
-  tick();
-  syncTimer = setInterval(tick, intervalMs);
-  if (syncTimer && typeof syncTimer.unref === 'function') {
-    syncTimer.unref();
-  }
-  return syncTimer;
-}
-
-export function stopFederatedSyncLoop() {
-  if (syncTimer) {
-    clearInterval(syncTimer);
-    syncTimer = null;
+  } catch (err) {
+    console.warn('[Lumina SW] Federated sync failed:', err?.message || err);
   }
 }
 

@@ -921,6 +921,7 @@
 	  QUIZ: 'QUIZ',
 	  POLL: 'POLL',
 	  LMS_READING: 'LMS_READING',
+	  PHYSICS_SIM: 'PHYSICS_SIM',
 	  UNKNOWN: 'UNKNOWN',
 	});
 
@@ -942,18 +943,33 @@
 	 * Maps an inferred learning state to a UI nudge object.
 	 *
 	 * @param {string} state - The LearningState enum value
+	 * @param {string} platformType - The PlatformType enum value
 	 * @returns {{ title: string, message: string, type: string }} Nudge data
 	 */
-	function mapStateToNudge$1(state) {
+	function mapStateToNudge$1(state, platformType = null) {
 	  switch (state) {
 	    case LearningState.STRUGGLING:
+	      if (platformType === PlatformType.QUIZ) {
+	        return {
+	          type: 'struggling',
+	          title: 'Take a Breath',
+	          message: "80% of students find this question difficult. Don't stress!",
+	        };
+	      }
 	      return {
 	        type: 'struggling',
 	        title: 'Take a Breath',
 	        message: "It looks like you might be stuck. Let's break this problem down into smaller steps.",
 	      };
-	    
+
 	    case LearningState.STALLED:
+	      if (platformType === PlatformType.PHYSICS_SIM) {
+	        return {
+	          type: 'stalled',
+	          title: 'Need a Hint?',
+	          message: "You've been changing these variables a lot. Should we review the prerequisite formula?",
+	        };
+	      }
 	      return {
 	        type: 'stalled',
 	        title: 'Need a Hint?',
@@ -975,6 +991,13 @@
 	      };
 
 	    case LearningState.RE_READING:
+	      if (platformType === PlatformType.LMS_READING) {
+	        return {
+	          type: 're-reading',
+	          title: 'Reviewing',
+	          message: 'It looks like you are rereading this. Want me to generate a high-level synthesis of the key arguments?',
+	        };
+	      }
 	      return {
 	        type: 're-reading',
 	        title: 'Reviewing',
@@ -1030,13 +1053,43 @@
 	 * @param {{ dwell_time_ms: number, scroll_velocity: number, mouse_jitter: number, tab_switches: number }} metrics
 	 * @returns {string} One of LearningState values
 	 */
-	function classifyState(metrics) {
+	function classifyState(metrics, platformType = null) {
 	  const { dwell_time_ms, mouse_jitter, tab_switches, re_read_cycles } = metrics;
+
+	  // Domain Adapter: Physics Simulators (e.g. PhET)
+	  // Physics sims often involve tweaking variables repeatedly without submitting.
+	  // If time is high and jitter is low-medium but they haven't switched tabs,
+	  // we consider them STALLED rather than DEEP_READING.
+	  if (platformType === PlatformType.PHYSICS_SIM) {
+	    if (dwell_time_ms >= THRESHOLDS.DWELL_HIGH) {
+	      // High dwell time without completing the simulation
+	      if (mouse_jitter >= THRESHOLDS.JITTER_HIGH) return LearningState.STRUGGLING;
+	      return LearningState.STALLED; // They are stuck trying different variables without progress
+	    }
+	  }
+
+	  // Domain Adapter: Canvas LMS Reading
+	  // If reading a PDF or page and re-read cycles are high, it's specific.
+	  if (platformType === PlatformType.LMS_READING) {
+	    if (re_read_cycles && re_read_cycles >= THRESHOLDS.RE_READ_CYCLES_HIGH) {
+	      return LearningState.RE_READING;
+	    }
+	  }
 
 	  // High tab switches → distracted / stalled
 	  if (tab_switches >= THRESHOLDS.TAB_SWITCH_HIGH) {
 	    return LearningState.STALLED;
 	  }
+
+	  // Domain Adapter: Kahoot Quizzes
+	  // Anxious Learner: Kahoot has a timer. High jitter + moderate dwell = Struggling (hesitation)
+	  if (platformType === PlatformType.QUIZ) {
+	    if (dwell_time_ms >= (THRESHOLDS.DWELL_HIGH * 0.5) && mouse_jitter >= THRESHOLDS.JITTER_HIGH) {
+	      return LearningState.STRUGGLING; // Fast hesitation
+	    }
+	  }
+
+	  // Generic Rules
 
 	  // High re-read cycles → re-reading
 	  if (re_read_cycles && re_read_cycles >= THRESHOLDS.RE_READ_CYCLES_HIGH) {
@@ -1114,7 +1167,7 @@
 	  try {
 	    if (typeof window !== 'undefined' && window.ai) {
 	      console.log(`[Lumina Offscreen] 🧠 window.ai detected. Keys:`, Object.keys(window.ai));
-	      
+
 	      let session = null;
 	      let aiResponse = null;
 
@@ -1127,7 +1180,7 @@
 	          console.log(`[Lumina Offscreen] 🧠 Sending Prompt (LanguageModel): \n\n${promptText}`);
 	          aiResponse = await session.prompt(promptText);
 	        }
-	      } 
+	      }
 	      // Chrome 127 (Assistant API)
 	      else if (window.ai.assistant && typeof window.ai.assistant.create === 'function') {
 	        const capabilities = await window.ai.assistant.capabilities();
@@ -1162,17 +1215,17 @@
 	  } catch (err) {
 	    console.error('[Lumina Offscreen] LLM generation error:', err);
 	  }
-	  
+
 	  // Phase 4: Fallback to Transformers.js WebAssembly / WebGPU (UAC 2 Compliance)
 	  try {
 	    console.log('[Lumina Offscreen] \ud83e\udde0 Falling back to local Transformers.js model (Xenova/LaMini-Flan-T5-77M)...');
-	    
+
 	    // Dynamic import so a broken node_modules never crashes the rule-based classifier
 	    const { pipeline, env } = await Promise.resolve().then(function () { return transformers; });
 
 	    // Disable local model lookup to allow downloading directly from Hugging Face Edge cache
 	    env.allowLocalModels = false;
-	    
+
 	    // Lazy-load the pipeline globally so we only download the weights once per session
 	    if (!window.transformersPipeline) {
 	      window.transformersPipeline = await pipeline('text2text-generation', 'Xenova/LaMini-Flan-T5-77M', {
@@ -1201,15 +1254,15 @@
 	  } catch (err) {
 	    console.error('[Lumina Offscreen] Transformers.js fallback error:', err);
 	  }
-	  
+
 	  // Demonstration Fallback: If the user doesn't have chrome://flags/#prompt-api-for-gemini-nano enabled,
 	  // we still want them to see the text extraction working!
 	  const extractedTextMatch = promptText.match(/"([^"]+)"/);
 	  const extractedText = extractedTextMatch ? extractedTextMatch[1].substring(0, 40) + '...' : '';
-	  
-	  return { 
-	    message: `✨ [Mock AI Nudge]: I see you're struggling with "${extractedText}". Let's break it down together!`, 
-	    is_dynamic: true 
+
+	  return {
+	    message: `✨ [Mock AI Nudge]: I see you're struggling with "${extractedText}". Let's break it down together!`,
+	    is_dynamic: true
 	  };
 	}
 
@@ -1362,8 +1415,34 @@ Rules:
 	      return {
 	        provider,
 	        modelSession,
-	        // Keep classifier output stable until input/output tensor mapping is finalized.
-	        run: async (metrics) => classifyState(metrics),
+	        // Run against ONNX session or fallback to rules if input shape is wrong
+	        run: async (metrics) => {
+	          try {
+	            // Convert metrics to Float32Array matching [1, 5]
+	            const inputData = Float32Array.from([
+	              metrics.dwell_time_ms,
+	              metrics.scroll_velocity,
+	              metrics.mouse_jitter,
+	              metrics.tab_switches,
+	              metrics.re_read_cycles
+	            ]);
+	            
+	            const tensor = new ortWeb_minExports.Tensor('float32', inputData, [1, 5]);
+	            const results = await modelSession.run({ input: tensor });
+	            const output = results.output.data;
+	            
+	            // Map highest output score to LearningState
+	            const states = ['struggling', 'stalled', 'focused', 'deep-reading', 're-reading', 'idle'];
+	            let maxIdx = 0;
+	            for (let i = 1; i < output.length; i++) {
+	              if (output[i] > output[maxIdx]) maxIdx = i;
+	            }
+	            return states[maxIdx] || 'idle';
+	          } catch (err) {
+	            console.warn('[Lumina Offscreen] ONNX inference failed, falling back to rules:', err);
+	            return classifyState(metrics);
+	          }
+	        },
 	      };
 	    } catch (err) {
 	      console.warn(

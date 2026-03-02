@@ -32,13 +32,43 @@ const THRESHOLDS = {
  * @param {{ dwell_time_ms: number, scroll_velocity: number, mouse_jitter: number, tab_switches: number }} metrics
  * @returns {string} One of LearningState values
  */
-export function classifyState(metrics) {
+export function classifyState(metrics, platformType = null) {
   const { dwell_time_ms, mouse_jitter, tab_switches, re_read_cycles } = metrics;
+
+  // Domain Adapter: Physics Simulators (e.g. PhET)
+  // Physics sims often involve tweaking variables repeatedly without submitting.
+  // If time is high and jitter is low-medium but they haven't switched tabs,
+  // we consider them STALLED rather than DEEP_READING.
+  if (platformType === PlatformType.PHYSICS_SIM) {
+    if (dwell_time_ms >= THRESHOLDS.DWELL_HIGH) {
+      // High dwell time without completing the simulation
+      if (mouse_jitter >= THRESHOLDS.JITTER_HIGH) return LearningState.STRUGGLING;
+      return LearningState.STALLED; // They are stuck trying different variables without progress
+    }
+  }
+
+  // Domain Adapter: Canvas LMS Reading
+  // If reading a PDF or page and re-read cycles are high, it's specific.
+  if (platformType === PlatformType.LMS_READING) {
+    if (re_read_cycles && re_read_cycles >= THRESHOLDS.RE_READ_CYCLES_HIGH) {
+      return LearningState.RE_READING;
+    }
+  }
 
   // High tab switches → distracted / stalled
   if (tab_switches >= THRESHOLDS.TAB_SWITCH_HIGH) {
     return LearningState.STALLED;
   }
+
+  // Domain Adapter: Kahoot Quizzes
+  // Anxious Learner: Kahoot has a timer. High jitter + moderate dwell = Struggling (hesitation)
+  if (platformType === PlatformType.QUIZ) {
+    if (dwell_time_ms >= (THRESHOLDS.DWELL_HIGH * 0.5) && mouse_jitter >= THRESHOLDS.JITTER_HIGH) {
+      return LearningState.STRUGGLING; // Fast hesitation
+    }
+  }
+
+  // Generic Rules
 
   // High re-read cycles → re-reading
   if (re_read_cycles && re_read_cycles >= THRESHOLDS.RE_READ_CYCLES_HIGH) {
@@ -119,7 +149,7 @@ async function generateNudgeFromLLM(promptText, fallbackPrompt) {
   try {
     if (typeof window !== 'undefined' && window.ai) {
       console.log(`[Lumina Offscreen] 🧠 window.ai detected. Keys:`, Object.keys(window.ai));
-      
+
       let session = null;
       let aiResponse = null;
 
@@ -132,7 +162,7 @@ async function generateNudgeFromLLM(promptText, fallbackPrompt) {
           console.log(`[Lumina Offscreen] 🧠 Sending Prompt (LanguageModel): \n\n${promptText}`);
           aiResponse = await session.prompt(promptText);
         }
-      } 
+      }
       // Chrome 127 (Assistant API)
       else if (window.ai.assistant && typeof window.ai.assistant.create === 'function') {
         const capabilities = await window.ai.assistant.capabilities();
@@ -167,17 +197,17 @@ async function generateNudgeFromLLM(promptText, fallbackPrompt) {
   } catch (err) {
     console.error('[Lumina Offscreen] LLM generation error:', err);
   }
-  
+
   // Phase 4: Fallback to Transformers.js WebAssembly / WebGPU (UAC 2 Compliance)
   try {
     console.log('[Lumina Offscreen] \ud83e\udde0 Falling back to local Transformers.js model (Xenova/LaMini-Flan-T5-77M)...');
-    
+
     // Dynamic import so a broken node_modules never crashes the rule-based classifier
     const { pipeline, env } = await import('@xenova/transformers');
 
     // Disable local model lookup to allow downloading directly from Hugging Face Edge cache
     env.allowLocalModels = false;
-    
+
     // Lazy-load the pipeline globally so we only download the weights once per session
     if (!window.transformersPipeline) {
       window.transformersPipeline = await pipeline('text2text-generation', 'Xenova/LaMini-Flan-T5-77M', {
@@ -206,15 +236,15 @@ async function generateNudgeFromLLM(promptText, fallbackPrompt) {
   } catch (err) {
     console.error('[Lumina Offscreen] Transformers.js fallback error:', err);
   }
-  
+
   // Demonstration Fallback: If the user doesn't have chrome://flags/#prompt-api-for-gemini-nano enabled,
   // we still want them to see the text extraction working!
   const extractedTextMatch = promptText.match(/"([^"]+)"/);
   const extractedText = extractedTextMatch ? extractedTextMatch[1].substring(0, 40) + '...' : '';
-  
-  return { 
-    message: `✨ [Mock AI Nudge]: I see you're struggling with "${extractedText}". Let's break it down together!`, 
-    is_dynamic: true 
+
+  return {
+    message: `✨ [Mock AI Nudge]: I see you're struggling with "${extractedText}". Let's break it down together!`,
+    is_dynamic: true
   };
 }
 

@@ -18,6 +18,16 @@ import { PlatformType } from '@shared/constants.js';
  */
 export const PLATFORM_REGISTRY = [
   {
+    name: 'phet.colorado.edu',
+    type: PlatformType.PHYSICS_SIM,
+    match: (hostname) =>
+      hostname === 'phet.colorado.edu' ||
+      hostname.endsWith('.phet.colorado.edu'),
+    // PhET HTML5 sims often use specific ARIA roles or nested canvases. 
+    // We target generic interactive slider inputs or generic buttons for tracking interactions
+    selectors: ['input[type="range"]', 'button', '.phet-slider-thumb', '[role="slider"]'],
+  },
+  {
     name: 'kahoot.it',
     type: PlatformType.QUIZ,
     match: (hostname) =>
@@ -31,7 +41,7 @@ export const PLATFORM_REGISTRY = [
     match: (hostname) =>
       hostname.endsWith('.instructure.com') ||
       hostname === 'canvas.instructure.com',
-    selectors: ['.quiz-question', '.question_text', '.answer'],
+    selectors: ['.quiz-question', '.question_text', '.answer', 'p'], // Added paragraphs for simpler text extraction
   },
   {
     name: 'wooclap',
@@ -78,7 +88,7 @@ export function detectPlatform(urlString) {
   const baseDomain =
     parts.length >= 2 ? `${parts[parts.length - 2]}.${parts[parts.length - 1]}` : hostname;
 
-  return { domain: baseDomain, type: PlatformType.UNKNOWN };
+  return { domain: baseDomain || 'unknown', type: PlatformType.UNKNOWN };
 }
 
 // ─── Quiz Element Detection ────────────────────────────────────────────────────
