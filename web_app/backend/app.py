@@ -21,7 +21,16 @@ import json
 def get_rabbitmq_channel():
     connection = pika.BlockingConnection(pika.ConnectionParameters('localhost'))
     channel = connection.channel()
-    channel.queue_declare(queue='lumina_data_queue', durable=True)
+    
+    # Declare Exchange
+    channel.exchange_declare(exchange='lumina.events', exchange_type='direct', durable=True)
+    
+    # Declare Queue
+    channel.queue_declare(queue='Lumina_Event', durable=True)
+    
+    # Bind Queue to Exchange with Routing Key
+    channel.queue_bind(exchange='lumina.events', queue='Lumina_Event', routing_key='behavior.packet')
+    
     return connection, channel
 
 @app.route('/api/ingest', methods=['POST'])
@@ -34,8 +43,8 @@ def ingest_data():
         # Publish to RabbitMQ
         connection, channel = get_rabbitmq_channel()
         channel.basic_publish(
-            exchange='',
-            routing_key='lumina_data_queue',
+            exchange='lumina.events',
+            routing_key='behavior.packet',
             body=json.dumps(data),
             properties=pika.BasicProperties(
                 delivery_mode=pika.spec.PERSISTENT_DELIVERY_MODE

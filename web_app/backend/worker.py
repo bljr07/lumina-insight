@@ -1,43 +1,51 @@
 import pika
 import json
 import os
-from flask import Flask
-from models import db, HeatmapPoint, GhostData
+from supabase import create_client, Client
+from dotenv import load_dotenv
 
-# Set up mock Flask App Context to access DB
-app = Flask(__name__)
-basedir = os.path.abspath(os.path.dirname(__file__))
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(basedir, 'app.db')
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+# Initialize Supabase client
+load_dotenv()
 
-db.init_app(app)
+supabase_url = os.getenv("SUPABASE_URL")
+supabase_key = os.getenv("SUPABASE_KEY")
+print(supabase_url)
+print(supabase_key)
+
+if supabase_url and supabase_key:
+    supabase: Client = create_client(supabase_url, supabase_key)
+else:
+    print(" [!] Warning: SUPABASE_URL or SUPABASE_KEY is missing. Data will not be saved.")
+    supabase = None
 
 def process_interaction_data(ch, method, properties, body):
     try:
         data = json.loads(body)
-        print(f" [x] Received Data: {data}")
+        print(f" [x] Received Data: {data.get('event_id', 'Unknown ID')}")
         
-        # Example of writing processed data. 
-        # Depending on the payload from the extension (e.g. `type: "stalled"`), we adapt the logic.
-        # For now, we will just echo it or log it into a general Stat/Heatmap table as MVP.
-        
-        with app.app_context():
-            # Mock Logic for MVP: increment heatmap intensity if the user "stalled"
-            if data.get('event_type') == 'interaction_stall':
-                # Simplified date to week/day logic mapped from payload
-                week = data.get('week', 0)
-                day = data.get('day', 0)
-                
-                # Check for existing point
-                point = HeatmapPoint.query.filter_by(week=week, day=day).first()
-                if point:
-                    point.intensity += 1
-                else:
-                    new_point = HeatmapPoint(week=week, day=day, intensity=1)
-                    db.session.add(new_point)
-                    
-                db.session.commit()
-                print(" [x] Logged stall interaction to DB.")
+        if supabase:
+            # Extract fields according to the new schema
+            context = data.get('context', {})
+            metrics = data.get('metrics', {})
+            
+            record = {
+                'event_id': data.get('event_id'),
+                'session_hash': data.get('session_hash'),
+                'timestamp': data.get('timestamp'),
+                'domain': context.get('domain'),
+                'platform_type': context.get('type'),
+                'dwell_time_ms': metrics.get('dwell_time_ms', 0),
+                'scroll_velocity': metrics.get('scroll_velocity', 0),
+                'mouse_jitter': metrics.get('mouse_jitter', 0),
+                'tab_switches': metrics.get('tab_switches', 0),
+                're_read_cycles': metrics.get('re_read_cycles', 0),
+                'inferred_state': data.get('inferred_state', 'UNKNOWN'),
+                'transient_content': data.get('transient_content')
+            }
+            
+            # Insert into Supabase
+            response = supabase.table('behavioral_events').insert(record).execute()
+            print(f" [x] Logged event to Supabase: {response.data}")
                 
         # Acknowledge the message
         ch.basic_ack(delivery_tag=method.delivery_tag)
@@ -51,12 +59,18 @@ def main():
     connection = pika.BlockingConnection(pika.ConnectionParameters(host='localhost'))
     channel = connection.channel()
 
+    # Declare Exchange
+    channel.exchange_declare(exchange='lumina.events', exchange_type='direct', durable=True)
+    
     # Declare the queue in case it doesn't exist yet
-    channel.queue_declare(queue='lumina_data_queue', durable=True)
+    channel.queue_declare(queue='Lumina_Event', durable=True)
+    
+    # Bind Queue to Exchange with Routing Key
+    channel.queue_bind(exchange='lumina.events', queue='Lumina_Event', routing_key='behavior.packet')
 
     # Distribute messages fairly avoiding bottlenecks
     channel.basic_qos(prefetch_count=1)
-    channel.basic_consume(queue='lumina_data_queue', on_message_callback=process_interaction_data)
+    channel.basic_consume(queue='Lumina_Event', on_message_callback=process_interaction_data)
 
     print(' [*] Waiting for messages. To exit press CTRL+C')
     channel.start_consuming()
