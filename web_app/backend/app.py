@@ -90,10 +90,11 @@ def federated_push():
     """
     try:
         data = request.json
-        if not data or 'client_id' not in data or 'weights' not in data:
-            return jsonify({'error': 'Missing client_id or weights'}), 400
-        if not isinstance(data['client_id'], str) or not data['client_id'].strip():
-            return jsonify({'error': 'client_id must be a non-empty string'}), 400
+        client_key = data.get('client_id') or data.get('session_hash')
+        if not data or not client_key or 'weights' not in data:
+            return jsonify({'error': 'Missing client_id/session_hash or weights'}), 400
+        if not isinstance(client_key, str) or not client_key.strip():
+            return jsonify({'error': 'client key must be a non-empty string'}), 400
         if not _is_valid_weight_array(data['weights']):
             return jsonify({'error': 'weights must be a non-empty numeric array'}), 400
 
@@ -110,7 +111,7 @@ def federated_push():
 
         # Save to DB
         fw = FederatedWeight(
-            client_id=data['client_id'],
+            client_id=client_key,
             weights=json.dumps(data['weights'])
         )
         db.session.add(fw)
